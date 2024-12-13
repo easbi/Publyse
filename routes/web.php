@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\PublikasiController;
+use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\PemeriksaanController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -13,6 +15,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [PublikasiController::class, 'index']);
+Route::resource('publikasi', PublikasiController::class);
+
+Route::resource('assignment', AssignmentController::class);
+
+Route::resource('pemeriksaan', PemeriksaanController::class);
