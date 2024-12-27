@@ -77,9 +77,9 @@
               </li>        
 
               <li class="nav-item">
-                <a class="nav-link {{ Request::is('//user/profile')? 'active':'' }}" href="{{ url('/user/profile')}}">
+                <a class="nav-link {{ Request::is('//masternonkonten')? 'active':'' }}" href="{{ url('/masternonkonten')}}">
                   <i class="material-icons">person</i>
-                  <span>User Profile</span>
+                  <span>Master Non Konten</span>
                 </a>
               </li>
               <li class="nav-item">

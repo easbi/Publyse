@@ -52,13 +52,24 @@ class AssignmentController extends Controller
     {
         $request->validate([
             'publikasi_id' => 'required',
-            'pemeriksa_nip' => 'required',
+            'pemeriksa_nip' => [
+                'required',
+                'array',
+                function ($attribute, $value, $fail) {
+                    if (count($value) !== count(array_unique($value))) {
+                        $fail('Anggota pemeriksa tidak boleh sama.');
+                    }
+                },
+            ],
+            'pemeriksa_nip.*' => 'exists:users,nip', // Pastikan NIP valid
         ]);
 
-        $result = assignment::create([
-            'publikasi_id' => $request->publikasi_id,
-            'pemeriksa_nip' => $request->pemeriksa_nip,
-        ]);
+        foreach ($request->pemeriksa_nip as $nip) {
+            Assignment::create([
+                'publikasi_id' => $request->publikasi_id,
+                'pemeriksa_nip' => $nip,
+            ]);
+        }
 
         return redirect()->route('assignment.index')
                         ->with('success','assignment Sukses Ditambahkan!');

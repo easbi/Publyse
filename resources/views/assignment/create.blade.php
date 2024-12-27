@@ -5,7 +5,7 @@
 <div class="page-header row no-gutters py-4">
     <div class="col-12 col-sm-4 text-center text-sm-left mb-0">
         <span class="text-uppercase page-subtitle">Publyse</span>
-        <h3 class="page-title">Input Alokasi Penugasan Pemeriksa</h3>
+        <h3 class="page-title">Entri Alokasi Penugasan Pemeriksa</h3>
     </div>
 </div>
 
@@ -42,13 +42,19 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="">Pemeriksa:</label>                                    
-                                    <select class="form-control" id="pemeriksa_nip" name="pemeriksa_nip" required>
-                                        <option value="" selected disabled>Pilih</option>
-                                        @foreach($users as $item)
-                                        <option value="{{ $item->nip }}">{{ $item->fullname }}</option>
-                                        @endforeach
-                                    </select>
+                                    <label for="">Anggota Pemeriksa</label>                                  
+                                    <div id="dynamic-input">
+                                        <div class="input-group mb-2">
+                                            <select class="form-control" name="pemeriksa_nip[]" required>
+                                                <option value="" selected disabled>Pilih</option>
+                                                @foreach($users as $item)
+                                                <option value="{{ $item->nip }}">{{ $item->fullname }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="button" class="btn btn-danger remove-field">Remove</button>
+                                        </div>
+                                    </div>
+                                    <button type="button" id="add-field" class="btn btn-primary">Tambah Anggota</button>
                                 </div>
                                 <div class="form-group">
                                     <button type="submit" class="btn btn-success">Kirim</button>
@@ -62,7 +68,32 @@
     </div>
 </div>
 <!-- End of Content -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+    // Menambahkan input anggota tim kerja
+        $('#add-field').click(function() {
+            var inputField = `
+            <div class="input-group mb-2">
+            <select class="form-control" name="pemeriksa_nip[]" required>
+            <option value="" selected disabled>Pilih</option>
+            @foreach($users as $item)
+            <option value="{{ $item->nip }}">{{ $item->fullname }}</option>
+            @endforeach
+            </select>
+            <button type="button" class="btn btn-danger remove-field">Remove</button>
+            </div>
+            `;
+            $('#dynamic-input').append(inputField);
+        });
 
+    // Menghapus input anggota tim kerja
+        $(document).on('click', '.remove-field', function() {
+            $(this).closest('.input-group').remove();
+        });
 
+    });
+
+</script>
 
 @endsection

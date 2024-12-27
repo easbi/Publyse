@@ -33,7 +33,7 @@
                             <form action="{{ route('publikasi.store') }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 <div class="form-group">
-                                    <label for="kegiatan">Nama Aplikasi:</label>
+                                    <label for="kegiatan">Nama Publikasi:</label>
                                     <input type="text" class="form-control" name="nama_publikasi" required/>
                                 </div>
                                 <div class="form-group">

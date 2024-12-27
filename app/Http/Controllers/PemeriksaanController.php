@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pemeriksaan;
+use App\Models\Masternonkonten;
 use App\Models\Assignment;
 use Illuminate\Http\Request;
 use Illuminate\Http\File;
@@ -53,6 +54,25 @@ class PemeriksaanController extends Controller
         // dd($assigntim);
         
         return view('pemeriksaan.create', compact('publikasi', 'users'));
+    }
+
+    public function createnonkonten()
+    {
+        // $publikasi =  DB::table('master_publikasi')->get();
+        $users =  DB::table('users')->select('nip', 'fullname')->get();
+
+        $publikasi=  DB::table('assign_pemeriksa')
+            ->where('assign_pemeriksa.pemeriksa_nip','=', '199602182019011002' ) #Auth::user()->nip
+            ->join('master_publikasi', 'assign_pemeriksa.publikasi_id', '=', 'master_publikasi.id')
+            ->join('users', 'assign_pemeriksa.pemeriksa_nip', '=', 'users.nip')
+            ->select(
+                'users.fullname AS nama_pemeriksa', 
+                'master_publikasi.nama_publikasi as nama_publikasi',
+                'assign_pemeriksa.*')
+            ->get();
+        $pertanyaan = Masternonkonten::all();
+        
+        return view('pemeriksaan.create2', compact('publikasi', 'users', 'pertanyaan'));
     }
 
     /**
