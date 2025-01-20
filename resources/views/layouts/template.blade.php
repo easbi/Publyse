@@ -72,9 +72,16 @@
               <li class="nav-item">
                 <a class="nav-link {{ Request::is('pemeriksaan')? "active":"" }}" href="{{ url('/pemeriksaan')}}">
                   <i class="material-icons">assessment</i>
-                  <span>Pemeriksaan</span>
+                  <span>Pemeriksaan Konten</span>
                 </a>
-              </li>        
+              </li>      
+
+              <li class="nav-item">
+                <a class="nav-link {{ Request::is('pemeriksaan')? "active":"" }}" href="{{ url('/pemeriksaan/create2')}}">
+                  <i class="material-icons">assessment</i>
+                  <span>Pemeriksaan Non-Konten</span>
+                </a>
+              </li>     
 
               <li class="nav-item">
                 <a class="nav-link {{ Request::is('//masternonkonten')? 'active':'' }}" href="{{ url('/masternonkonten')}}">
@@ -113,10 +120,10 @@
                 <li class="nav-item dropdown">
                   <a class="nav-link dropdown-toggle text-nowrap px-3" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
                     <img class="user-avatar rounded-circle mr-2" src="{{asset('template/images/avatars/bps.png')}}" alt="User Avatar">
-                    <span class="d-none d-md-inline-block">XXXX</span>
+                    <span class="d-none d-md-inline-block">{{ Auth::user()->fullname }}</span>
                   </a>
                   <div class="dropdown-menu dropdown-menu-small">
-                    <a class="dropdown-item" href="{{ url('/user/profile')}}">
+                    <a class="dropdown-item" href="#">
                       <i class="material-icons">&#xE7FD;</i> Profile</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item text-danger" href="{{ url('/logout')}}">
