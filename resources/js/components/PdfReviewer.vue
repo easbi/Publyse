@@ -113,9 +113,13 @@ const props = defineProps({
     currentUser: Object,
 });
 
+console.log("Data mentah yang diterima oleh Vue:", props.document);
+console.log("URL PDF yang diterima oleh Vue:", props.document.pdf_url);
+
 // BARU: Set state awal dari props
 const comments = ref(props.document.comments || []);
-const pdfUrl = ref(`/storage/${props.document.stored_path}`);
+const pdfUrl = ref(props.document.pdf_url);
+
 
 // State untuk PDF
 const pdfDoc = ref(null);

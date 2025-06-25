@@ -21,19 +21,16 @@ class PublicationController extends Controller
      */
     public function show(Publication $publication)
     {
-        // dd(config('app.url'));
-        // Mengambil dokumen versi terakhir dari publikasi ini
-        $latestDocument = $publication->documents()->latest()->first();
-
-        // Pastikan accessor 'pdf_url' kita ikut di dalam data JSON jika dokumen ada
+        $latestDocument = $publication->documents()
+                                  ->with(['comments.user'])
+                                  ->latest()
+                                  ->first();
         if ($latestDocument) {
-            $latestDocument->makeVisible(['pdf_url']);
-            // HENTIKAN DAN TAMPILKAN URL YANG DIHASILKAN
-            // dd($latestDocument->pdf_url);
+            $latestDocument->pdf_url = asset('storage/' . $latestDocument->stored_path);
         }
-                                      
+
         return view('publications.show', compact('publication', 'latestDocument'));
-    }
+        }
 
     // Method lain (create, store, edit, update, destroy) akan kita isi nanti.
 }

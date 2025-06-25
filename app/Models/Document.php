@@ -10,6 +10,7 @@ class Document extends Model
     use HasFactory;
 
     protected $fillable = ['publication_id', 'original_filename', 'stored_path', 'version', 'uploader_id'];
+    protected $appends = ['pdf_url'];
 
     /**
      * Publikasi induk dari dokumen ini.
