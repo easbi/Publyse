@@ -1,7 +1,36 @@
+// resources/js/app.js
+
+// 1. Import file-file penting
 import './bootstrap';
+import '../css/app.css';
 
-import Alpine from 'alpinejs';
+// 2. Import Vue dan komponen kita
+import { createApp } from 'vue';
+import PdfReviewer from './components/PdfReviewer.vue';
 
-window.Alpine = Alpine;
+console.log("File app.js baru berhasil dijalankan!"); // Pesan debug #1
 
-Alpine.start();
+// 3. Cari elemen div tempat kita akan me-mount aplikasi Vue
+const reviewerAppEl = document.getElementById('pdf-reviewer-app');
+
+// 4. Hanya jalankan jika elemen tersebut ada di halaman
+if (reviewerAppEl) {
+    console.log("Elemen #pdf-reviewer-app DITEMUKAN! Memulai mount Vue..."); // Pesan debug #2
+
+    // Ambil data dari atribut data-* dan parse sebagai JSON
+    const documentData = JSON.parse(reviewerAppEl.dataset.document);
+    const currentUserData = JSON.parse(reviewerAppEl.dataset.user);
+
+    // Buat aplikasi Vue dengan props
+    const app = createApp(PdfReviewer, {
+        document: documentData,
+        currentUser: currentUserData,
+    });
+
+    // Pasang aplikasi Vue ke elemen div
+    app.mount(reviewerAppEl);
+
+    console.log("Aplikasi Vue berhasil di-mount."); // Pesan debug #3
+} else {
+    console.log("Elemen #pdf-reviewer-app TIDAK ditemukan di halaman ini."); // Pesan debug #4
+}

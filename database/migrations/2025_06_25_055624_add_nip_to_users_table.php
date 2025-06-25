@@ -13,9 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('pemeriksaan_non_kontens', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('users', function (Blueprint $table) {
+            // Menambahkan kolom nip setelah kolom 'name'
+            // Dibuat unique agar tidak ada NIP yang sama.
+            $table->string('nip')->unique()->nullable()->after('name');
         });
     }
 
@@ -26,6 +27,8 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('pemeriksaan_non_kontens');
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('nip');
+        });
     }
 };

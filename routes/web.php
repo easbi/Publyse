@@ -1,12 +1,6 @@
 <?php
-
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PublikasiController;
-use App\Http\Controllers\AssignmentController;
-use App\Http\Controllers\PemeriksaanController;
-use App\Http\Controllers\MasternonkontenController;
-
+use App\Http\Controllers\PublicationController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -17,29 +11,24 @@ use App\Http\Controllers\MasternonkontenController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::get('/', function () {
+    return view('welcome');
+});
 
-Route::get('/', [PublikasiController::class, 'index']);
-
-
+// Ganti ini dengan route dashboard bawaan laravel jika ada (misal: breeze/jetstream)
 Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    return redirect()->route('publications.index');
+})->middleware(['auth'])->name('dashboard');
+
 
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    // Route untuk menampilkan semua publikasi
+    Route::get('/publications', [PublicationController::class, 'index'])->name('publications.index');
+    
+    // Route untuk menampilkan detail satu publikasi (halaman reviewer)
+    Route::get('/publications/{publication}', [PublicationController::class, 'show'])->name('publications.show');
 });
 
 
-Route::resource('masternonkonten', MasternonkontenController::class);
+require __DIR__.'/auth.php'; // Jika Anda menggunakan starter kit seperti Breeze
 
-Route::resource('publikasi', PublikasiController::class);
-
-Route::resource('assignment', AssignmentController::class);
-
-
-Route::get('pemeriksaan/create2', [PemeriksaanController::class, 'createnonkonten'])->name('pemeriksaan.create2');
-Route::post('/pemeriksaan/storenonkonten', [PemeriksaanController::class, 'storenonkonten'])->name('pemeriksaan.storenonkonten');
-Route::resource('pemeriksaan', PemeriksaanController::class);
-require __DIR__.'/auth.php';

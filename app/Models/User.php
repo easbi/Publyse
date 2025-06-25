@@ -41,4 +41,37 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    /**
+     * Publikasi yang dibuat oleh user ini.
+     */
+    public function createdPublications()
+    {
+        return $this->hasMany(Publication::class, 'creator_id');
+    }
+
+    /**
+     * Publikasi yang ditugaskan untuk direview oleh user ini.
+     */
+    public function assignedPublications()
+    {
+        return $this->belongsToMany(Publication::class, 'publication_user', 'reviewer_id', 'publication_id')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Komentar yang dibuat oleh user ini.
+     */
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
+    
+    /**
+     * Dokumen yang diunggah oleh user ini.
+     */
+    public function documents()
+    {
+        return $this->hasMany(Document::class, 'uploader_id');
+    }
 }
