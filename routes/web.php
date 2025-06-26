@@ -16,6 +16,21 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::post('/login', function (Request $request) {
+    $credentials = $request->only('email', 'password');
+
+    if (Auth::attempt($credentials)) {
+        $request->session()->regenerate();
+        return response()->json(['message' => 'Login berhasil']);
+    }
+
+    return response()->json(['message' => 'Login gagal'], 401);
+});
+
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['csrf' => true]);
+});
+
 Route::get('/dashboard', [DashboardController::class, 'index'])
      ->middleware(['auth'])->name('dashboard');
 
@@ -23,7 +38,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 Route::middleware('auth')->group(function () {
     // Route untuk menampilkan semua publikasi
     Route::get('/publications', [PublicationController::class, 'index'])->name('publications.index');
-    
+
     // Route untuk menampilkan detail satu publikasi (halaman reviewer)
     Route::get('/publications/{publication}', [PublicationController::class, 'show'])->name('publications.show');
 

@@ -8,6 +8,10 @@
             <header class="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
                 <div class="flex items-center gap-4">
                     <h1 class="text-xl font-bold text-gray-700">Versi: {{ document.version }}</h1>
+                    <button @click="loginTest" class="bg-green-500 text-white px-4 py-2 rounded">Login Test</button>
+
+
+
                     <a :href="pdfUrl" target="_blank" class="text-sm text-blue-600 hover:underline">Buka PDF di Tab Baru</a>
                 </div>
 
@@ -160,8 +164,21 @@ import * as pdfjsLib from 'pdfjs-dist';
 import axios from 'axios';
 
 // resources/js/bootstrap.js atau sebelum axios dipakai
-axios.defaults.baseURL = '/app/publyse/public/api';
+axios.defaults.baseURL = '/app/publyse/public/';
 axios.defaults.withCredentials = true;
+
+const loginTest = async () => {
+    try {
+        const res = await axios.post('/login', {
+            email: 'user@example.com',
+            password: 'password'
+        });
+        console.log('✅ Login berhasil:', res.data);
+    } catch (error) {
+        console.error('❌ Gagal login:', error.response?.status, error.message);
+    }
+};
+
 
 
 const props = defineProps({
@@ -344,31 +361,21 @@ const handleGoToComment = async (comment) => {
 
 // --- FUNGSI DIPERBAIKI ---
 const saveComment = async () => {
-    if (!newCommentData.value.content.trim()) return;
-
-    // Buat salinan payload untuk dikirim
-    const payload = { ...newCommentData.value, document_id: props.document.id };
-
-    // Ubah objek 'position' menjadi string JSON agar sesuai dengan validasi Laravel
-    if (payload.position) {
-        payload.position = JSON.stringify(payload.position);
-    }
-
     try {
-        const response = await axios.post(props.apiStoreUrl, payload);
-        // Tambahkan komentar baru dari server ke daftar lokal
-        comments.value.push(response.data);
-        cancelComment();
+        const res = await axios.post('/api/comments', {
+            content: "Komentar dari frontend",
+            position: JSON.stringify({ x: 10, y: 20 }),
+            page_number: 1,
+            document_id: props.document.id
+        });
+        console.log('✅ Komentar berhasil disimpan:', res.data);
     } catch (error) {
-        console.error("Gagal menyimpan komentar:", error);
-        // Tampilkan pesan error yang lebih spesifik jika ada dari server
-        if (error.response && error.response.data.message) {
-            alert(`Gagal menyimpan: ${error.response.data.message}`);
-        } else {
-            alert('Terjadi kesalahan saat menyimpan komentar.');
-        }
+        console.error('❌ Gagal menyimpan komentar:', error.response?.status, error.message);
+        alert('Gagal menyimpan komentar: ' + (error.response?.data?.message || error.message));
     }
 };
+
+
 
 const startEdit = (comment) => {
     editingComment.value = comment;
