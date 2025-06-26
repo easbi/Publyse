@@ -23,8 +23,14 @@ if (reviewerAppEl) {
 
     // Buat aplikasi Vue dengan props
     const app = createApp(PdfReviewer, {
-        document: documentData,
-        currentUser: currentUserData,
+        // document: documentData,
+        // currentUser: currentUserData,
+        document: JSON.parse(reviewerAppEl.dataset.document),
+        currentUser: JSON.parse(reviewerAppEl.dataset.user),
+        apiStoreUrl: reviewerAppEl.dataset.apiStoreUrl,
+        apiUpdateUrlTemplate: reviewerAppEl.dataset.apiUpdateUrlTemplate,
+        apiDeleteUrlTemplate: reviewerAppEl.dataset.apiDeleteUrlTemplate,
+        apiStatusUrlTemplate: reviewerAppEl.dataset.apiStatusUrlTemplate,
     });
 
     // Pasang aplikasi Vue ke elemen div

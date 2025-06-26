@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PublicationController;
+use App\Http\Controllers\DashboardController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -15,10 +16,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Ganti ini dengan route dashboard bawaan laravel jika ada (misal: breeze/jetstream)
-Route::get('/dashboard', function () {
-    return redirect()->route('publications.index');
-})->middleware(['auth'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+     ->middleware(['auth'])->name('dashboard');
 
 
 Route::middleware('auth')->group(function () {
@@ -27,6 +26,20 @@ Route::middleware('auth')->group(function () {
     
     // Route untuk menampilkan detail satu publikasi (halaman reviewer)
     Route::get('/publications/{publication}', [PublicationController::class, 'show'])->name('publications.show');
+
+    // Route untuk menampilkan halaman form tambah data
+    Route::get('/publication/create', [PublicationController::class, 'create'])->name('publications.create');
+
+    // Route untuk menyimpan data baru dari form
+    Route::post('/publications', [PublicationController::class, 'store'])->name('publications.store');
+
+    // Route untuk menampilkan halaman form penugasan pemeriksa
+    Route::get('/publications/{publication}/assign', [PublicationController::class, 'assignForm'])->name('publications.assign.form');
+
+    // Route untuk menyimpan atau memperbarui daftar pemeriksa
+    Route::post('/publications/{publication}/assign', [PublicationController::class, 'syncReviewers'])->name('publications.assign.sync');
+
+    Route::get('/publications/{publication}/summary', [PublicationController::class, 'summary'])->name('publications.summary');
 });
 
 

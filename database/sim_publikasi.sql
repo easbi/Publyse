@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 25 Jun 2025 pada 10.53
+-- Waktu pembuatan: 26 Jun 2025 pada 10.51
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -37,7 +37,8 @@ CREATE TABLE `comments` (
   `content` text NOT NULL,
   `status` enum('open','done') NOT NULL DEFAULT 'open',
   `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `parent_id` bigint(20) UNSIGNED DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -62,7 +63,8 @@ CREATE TABLE `documents` (
 --
 
 INSERT INTO `documents` (`id`, `publication_id`, `original_filename`, `stored_path`, `version`, `uploader_id`, `created_at`, `updated_at`) VALUES
-(1, 1, 'statistik-transportasi-2025.pdf', 'documents/indeks-pembangunan-manusia-provinsi-sumatera-barat-2024.pdf', 1, 1, '2025-06-24 23:58:18', '2025-06-24 23:58:18');
+(2, 2, 'Komponen Pilar 6 ZI.pdf', 'documents/poXno61xhjpIA8kHQzL1WPbvbPE2xlI7s1ZsYRzs.pdf', 1, 1, '2025-06-25 23:08:03', '2025-06-25 23:08:03'),
+(3, 3, 'Statistik Hortikultura Kota Padang Panjang 2024.pdf', 'documents/wTo59zZeNL3qsRoxR5SCgvlwuHJBFuexyZho6cq2.pdf', 1, 1, '2025-06-26 01:51:00', '2025-06-26 01:51:00');
 
 -- --------------------------------------------------------
 
@@ -105,7 +107,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (6, '2025_06_25_055714_create_publications_table', 1),
 (7, '2025_06_25_055816_create_documents_table', 1),
 (8, '2025_06_25_055847_create_publication_user_table', 1),
-(9, '2025_06_25_055921_create_comments_table', 1);
+(9, '2025_06_25_055921_create_comments_table', 1),
+(10, '2025_06_26_055413_add_parent_id_to_comments_table', 1);
 
 -- --------------------------------------------------------
 
@@ -159,7 +162,8 @@ CREATE TABLE `publications` (
 --
 
 INSERT INTO `publications` (`id`, `name`, `release_date`, `review_deadline`, `creator_id`, `created_at`, `updated_at`) VALUES
-(1, 'Publikasi Statistik Transportasi Triwulanan', '2025-09-25', '2025-07-25', 1, '2025-06-24 23:58:18', '2025-06-24 23:58:18');
+(2, 'Publikasi Statistik Daerah Kota Padang Panjang', '2025-06-26', '2025-06-27', 1, '2025-06-25 23:08:03', '2025-06-25 23:08:03'),
+(3, 'Publikasi Kota Padang Panjang Dalam Angka 2026', '2025-06-14', '2025-06-28', 1, '2025-06-26 01:51:00', '2025-06-26 01:51:00');
 
 -- --------------------------------------------------------
 
@@ -181,7 +185,7 @@ CREATE TABLE `publication_user` (
 --
 
 INSERT INTO `publication_user` (`id`, `publication_id`, `reviewer_id`, `assignor_id`, `created_at`, `updated_at`) VALUES
-(1, 1, 2, 1, '2025-06-24 23:58:18', '2025-06-24 23:58:18');
+(2, 3, 2, 1, '2025-06-26 01:51:21', '2025-06-26 01:51:21');
 
 -- --------------------------------------------------------
 
@@ -206,8 +210,8 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `nip`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, 'easbi', '111111', 'pembuat@bps.go.id', NULL, '$2y$10$sSY3aQJuPhe9dCKlxDwmtul4RDflKqpT/ZKbBulHK.QigMJSSzTmC', NULL, '2025-06-24 23:58:18', '2025-06-24 23:58:18'),
-(2, 'Susi Pemeriksa', '222222', 'pemeriksa@bps.go.id', NULL, '$2y$10$9mLBXdDm0pTkbf8K4gKmA.zJ0dFayik7pE3Y2zemldRdZIR4BfAsO', NULL, '2025-06-24 23:58:18', '2025-06-24 23:58:18');
+(1, 'Admin Pembuat', '111111', 'pembuat@bps.go.id', NULL, '$2y$10$Pu.06cKEm7JrwbVI3XPxTeLN1HX666dJocIlPo/FmQTENnksdGUA6', NULL, '2025-06-25 23:06:16', '2025-06-25 23:06:16'),
+(2, 'Susi Pemeriksa', '222222', 'pemeriksa@bps.go.id', NULL, '$2y$10$eN4ebLU6V9yKuguanbpxmOVf2br6AlKQrbWtECLlv.mZsq7RnKAL2', NULL, '2025-06-25 23:06:16', '2025-06-25 23:06:16');
 
 --
 -- Indexes for dumped tables
@@ -219,7 +223,8 @@ INSERT INTO `users` (`id`, `name`, `nip`, `email`, `email_verified_at`, `passwor
 ALTER TABLE `comments`
   ADD PRIMARY KEY (`id`),
   ADD KEY `comments_document_id_foreign` (`document_id`),
-  ADD KEY `comments_user_id_foreign` (`user_id`);
+  ADD KEY `comments_user_id_foreign` (`user_id`),
+  ADD KEY `comments_parent_id_foreign` (`parent_id`);
 
 --
 -- Indeks untuk tabel `documents`
@@ -294,7 +299,7 @@ ALTER TABLE `comments`
 -- AUTO_INCREMENT untuk tabel `documents`
 --
 ALTER TABLE `documents`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `failed_jobs`
@@ -306,7 +311,7 @@ ALTER TABLE `failed_jobs`
 -- AUTO_INCREMENT untuk tabel `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT untuk tabel `personal_access_tokens`
@@ -318,13 +323,13 @@ ALTER TABLE `personal_access_tokens`
 -- AUTO_INCREMENT untuk tabel `publications`
 --
 ALTER TABLE `publications`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `publication_user`
 --
 ALTER TABLE `publication_user`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
@@ -341,6 +346,7 @@ ALTER TABLE `users`
 --
 ALTER TABLE `comments`
   ADD CONSTRAINT `comments_document_id_foreign` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `comments_parent_id_foreign` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `comments_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 
 --

@@ -31,4 +31,20 @@ class Comment extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Relasi untuk mendapatkan komentar induk (jika ada).
+     */
+    public function parent()
+    {
+        return $this->belongsTo(Comment::class, 'parent_id');
+    }
+
+    /**
+     * Relasi untuk mendapatkan semua balasan dari sebuah komentar.
+     */
+    public function replies()
+    {
+        return $this->hasMany(Comment::class, 'parent_id');
+    }
 }

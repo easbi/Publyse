@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -13,40 +14,40 @@ class CommentController extends Controller
     {
         $validated = $request->validate([
             'document_id' => 'required|exists:documents,id',
-            'page_number' => 'required|integer',
-            'type' => 'required|in:point,area',
-            'position' => 'required|json',
             'content' => 'required|string',
+            'page_number' => 'nullable|integer', // Nullable karena balasan tidak butuh halaman
+            'type' => 'nullable|in:point,area',
+            'position' => 'nullable|json',
+            'parent_id' => 'nullable|exists:comments,id', // Validasi untuk balasan
         ]);
 
         $comment = Comment::create([
             'user_id' => auth()->id(),
-            'document_id' => $validated['document_id'],
-            'page_number' => $validated['page_number'],
-            'type' => $validated['type'],
-            'position' => $validated['position'],
-            'content' => $validated['content'],
             'status' => 'open',
+            // Gabungkan semua data tervalidasi
+            ...$validated 
         ]);
 
-        // Muat relasi user agar bisa ditampilkan di frontend
         $comment->load('user');
-
         return response()->json($comment, 201);
     }
 
-    public function updateStatus(Request $request, Comment $comment)
+    public function update(Request $request, Comment $comment)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:open,done',
-        ]);
+        Gate::authorize('update-comment', $comment);
 
-        // Mungkin tambahkan policy/gate di sini untuk otorisasi
-        // Gate::authorize('update', $comment);
+        $validated = $request->validate(['content' => 'required|string']);
+        $comment->update($validated);
 
-        $comment->status = $validated['status'];
-        $comment->save();
+        $comment->load('user');
+        return response()->json($comment);
+    }
 
-        return response()->json(['message' => 'Status berhasil diperbarui.']);
+    public function destroy(Comment $comment)
+    {
+        Gate::authorize('delete-comment', $comment);
+
+        $comment->delete();
+        return response()->json(null, 204); // 204 No Content
     }
 }

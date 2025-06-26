@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PDF Reviewer App</title>
     <!-- Vite akan memasukkan CSS dan JS secara otomatis -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -15,8 +16,8 @@
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="shrink-0 flex items-center">
-                            <a href="{{ route('publications.index') }}">
-                                <h1 class="font-bold text-lg">REVIEWER</h1>
+                            <a href="{{ route('dashboard') }}">
+                                <h1 class="font-bold text-lg">PUBLYSE</h1>
                             </a>
                         </div>
                     </div>

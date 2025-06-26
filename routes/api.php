@@ -21,6 +21,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Routes untuk Komentar
-    Route::post('/comments', [CommentController::class, 'store']);
-    Route::patch('/comments/{comment}/status', [CommentController::class, 'updateStatus']);
+    Route::post('/comments', [CommentController::class, 'store'])->name('api.comments.store');
+    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('api.comments.update');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('api.comments.destroy');
+    Route::patch('/comments/{comment}/status', [CommentController::class, 'updateStatus'])->name('api.comments.updateStatus');
 });
