@@ -34,64 +34,16 @@
                 <div v-if="isLoading" class="flex items-center justify-center h-full"><span class="text-gray-500">Memuat PDF...</span></div>
                 <div v-if="pdfDoc" id="pdf-container">
                     <canvas id="pdf-canvas"></canvas>
-                    <svg id="annotation-layer"
-                        @mousedown="startSelection"
-                        @mousemove="updateSelection"
-                        @mouseup="endSelection"
-                        @click.self="handleLayerClick"
-                        :width="canvasSize.width"
-                        :height="canvasSize.height">
-
+                    <svg id="annotation-layer" @mousedown="startSelection" @mousemove="updateSelection" @mouseup="endSelection" @click.self="handleLayerClick" :width="canvasSize.width" :height="canvasSize.height">
                         <g v-for="comment in commentsOnCurrentPage" :key="comment.id" @click="handleGoToComment(comment)">
-                            <!-- Render Point Annotation -->
-                            <g v-if="comment.type === 'point' && parsePosition(comment.position)"
-                            :transform="`translate(${parsePosition(comment.position).x || 0}, ${parsePosition(comment.position).y || 0})`"
-                            class="cursor-pointer">
-
-                                <circle r="12"
-                                        :fill="comment.status === 'done' ? '#16a34a' : 'red'"
-                                        fill-opacity="0.3">
-                                </circle>
-
-                                <path :class="{
-                                        'highlighted': comment.id === highlightedCommentId && comment.status === 'open',
-                                        'highlighted-done': comment.id === highlightedCommentId && comment.status === 'done',
-                                        'done-point': comment.status === 'done'
-                                    }"
-                                    class="annotation-point"
-                                    d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"
-                                    fill="#ef4444"
-                                    transform="translate(-8, -16) scale(1)">
-                                </path>
+                            <!-- Render Anotasi di sini -->
+                            <g v-if="comment.type === 'point'" :transform="`translate(${comment.position.x}, ${comment.position.y})`" class="cursor-pointer">
+                                <circle r="12" :fill="comment.status === 'done' ? '#16a34a' : 'red'" fill-opacity="0.3"></circle>
+                                <path :class="{ 'highlighted': comment.id === highlightedCommentId && comment.status === 'open', 'highlighted-done': comment.id === highlightedCommentId && comment.status === 'done', 'done-point': comment.status === 'done' }" class="annotation-point" d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" fill="#ef4444" transform="translate(-8, -16) scale(1)"></path>
                             </g>
-
-                            <!-- Render Area Annotation -->
-                            <rect v-if="comment.type === 'area' && parsePosition(comment.position)"
-                                :class="{
-                                    'highlighted-area': comment.id === highlightedCommentId && comment.status === 'open',
-                                    'highlighted-area-done': comment.id === highlightedCommentId && comment.status === 'done',
-                                    'done-area': comment.status === 'done'
-                                }"
-                                class="annotation-area cursor-pointer"
-                                :x="parsePosition(comment.position).x || 0"
-                                :y="parsePosition(comment.position).y || 0"
-                                :width="parsePosition(comment.position).width || 0"
-                                :height="parsePosition(comment.position).height || 0"
-                                stroke="#3b82f6"
-                                fill="#3b82f6">
-                            </rect>
+                            <rect v-if="comment.type === 'area'" :class="{ 'highlighted-area': comment.id === highlightedCommentId && comment.status === 'open', 'highlighted-area-done': comment.id === highlightedCommentId && comment.status === 'done', 'done-area': comment.status === 'done' }" class="annotation-area cursor-pointer" :x="comment.position.x" :y="comment.position.y" :width="comment.position.width" :height="comment.position.height" stroke="#3b82f6" fill="#3b82f6"></rect>
                         </g>
-
-                        <!-- Temporary selection rectangle -->
-                        <rect v-if="isDragging && tempSelectionRect"
-                            :x="tempSelectionRect.x"
-                            :y="tempSelectionRect.y"
-                            :width="tempSelectionRect.width"
-                            :height="tempSelectionRect.height"
-                            fill="rgba(59, 130, 246, 0.2)"
-                            stroke="#3b82f6"
-                            stroke-width="1"
-                            stroke-dasharray="4"/>
+                        <rect v-if="isDragging && tempSelectionRect" :x="tempSelectionRect.x" :y="tempSelectionRect.y" :width="tempSelectionRect.width" :height="tempSelectionRect.height" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4"/>
                     </svg>
                 </div>
             </div>
@@ -457,102 +409,15 @@ const saveEdit = async (comment) => {
     }
 };
 
-const parsePosition = (positionData) => {
-    if (!positionData) return null;
-
-    try {
-        // Jika sudah berupa object
-        if (typeof positionData === 'object') {
-            return positionData;
-        }
-
-        // Jika berupa string JSON
-        if (typeof positionData === 'string') {
-            return JSON.parse(positionData);
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Error parsing position:', error);
-        return null;
-    }
-};
-
-const debugComments = () => {
-    console.log('All comments:', comments.value);
-    comments.value.forEach((comment, index) => {
-        console.log(`Comment ${index}:`, {
-            id: comment.id,
-            type: comment.type,
-            position_raw: comment.position,
-            position_parsed: parsePosition(comment.position),
-            page_number: comment.page_number
-        });
-    });
-};
-
 const deleteComment = async (commentToDelete) => {
-    if (!confirm('Anda yakin ingin menghapus komentar ini dan semua balasannya?')) {
-        return;
-    }
-
-    try {
-        // Debug: Log URL yang akan dipanggil
-        const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
-        console.log('Attempting to delete comment with URL:', url);
-
-        // Tambahkan headers yang mungkin diperlukan
-        const response = await axios.delete(url, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        console.log('Delete successful:', response.data);
-
-        // Hapus dari local state setelah berhasil hapus di server
-        const index = comments.value.findIndex(c => c.id === commentToDelete.id);
-        if (index !== -1) {
-            comments.value.splice(index, 1);
-        }
-
-        // Bersihkan state terkait
-        if (highlightedCommentId.value === commentToDelete.id) {
-            highlightedCommentId.value = null;
-        }
-
-        if (editingComment.value?.id === commentToDelete.id) {
-            cancelEdit();
-        }
-
-        if (replyingToComment.value?.id === commentToDelete.id) {
-            cancelReply();
-        }
-
-        // Tampilkan pesan sukses
-        alert('Komentar berhasil dihapus.');
-
-    } catch (error) {
-        console.error("Gagal menghapus komentar:", error);
-        console.error("Error response:", error.response);
-
-        if (error.response?.status === 500) {
-            alert('Terjadi kesalahan server (500). Cek konsol browser dan log server untuk detail.');
-        } else if (error.response?.status === 404) {
-            alert('Komentar tidak ditemukan. Mungkin sudah dihapus sebelumnya.');
-            // Hapus dari local state juga
-            const index = comments.value.findIndex(c => c.id === commentToDelete.id);
-            if (index !== -1) {
-                comments.value.splice(index, 1);
-            }
-        } else if (error.response?.status === 403) {
-            alert('Anda tidak memiliki izin untuk menghapus komentar ini.');
-        } else if (error.response?.data?.message) {
-            alert(`Gagal menghapus komentar: ${error.response.data.message}`);
-        } else {
-            alert('Terjadi kesalahan saat menghapus komentar.');
+    if (confirm('Anda yakin ingin menghapus komentar ini dan semua balasannya?')) {
+        try {
+            const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
+            await axios.delete(url);
+            comments.value = comments.value.filter(c => c.id !== commentToDelete.id);
+        } catch (error) {
+            console.error("Gagal menghapus komentar:", error);
+            alert('Gagal menghapus komentar.');
         }
     }
 };
@@ -588,29 +453,7 @@ const submitReply = async (parentComment) => {
 };
 
 const commentsOnCurrentPage = computed(() => {
-    return comments.value.filter(c => {
-        if (c.type === null || c.page_number !== currentPageNum.value) {
-            return false;
-        }
-
-        const position = parsePosition(c.position);
-        if (!position) return false;
-
-        // Validasi koordinat untuk point
-        if (c.type === 'point') {
-            return typeof position.x === 'number' && typeof position.y === 'number';
-        }
-
-        // Validasi koordinat untuk area
-        if (c.type === 'area') {
-            return typeof position.x === 'number' &&
-                   typeof position.y === 'number' &&
-                   typeof position.width === 'number' &&
-                   typeof position.height === 'number';
-        }
-
-        return false;
-    });
+    return comments.value.filter(c => c.type !== null && c.page_number === currentPageNum.value);
 });
 
 const filteredComments = computed(() => {

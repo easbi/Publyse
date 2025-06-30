@@ -15,12 +15,3 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', fn(Request $request) => $request->user());
-
-    // Routes untuk Komentar
-    Route::post('/comments', [CommentController::class, 'store'])->name('api.comments.store');
-    Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('api.comments.update');
-    Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('api.comments.destroy');
-    Route::patch('/comments/{comment}/status', [CommentController::class, 'updateStatus'])->name('api.comments.updateStatus');
-});

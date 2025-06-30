@@ -2,6 +2,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PublicationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Api\CommentController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -55,6 +56,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/publications/{publication}/assign', [PublicationController::class, 'syncReviewers'])->name('publications.assign.sync');
 
     Route::get('/publications/{publication}/summary', [PublicationController::class, 'summary'])->name('publications.summary');
+
+    Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', fn(Request $request) => $request->user());
+
+    // Routes untuk Komentar
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::post('/comments', [CommentController::class, 'store'])->name('api.comments.store');
+        Route::put('/comments/{comment}', [CommentController::class, 'update'])->name('api.comments.update');
+        Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('api.comments.destroy');
+        Route::patch('/comments/{comment}/status', [CommentController::class, 'updateStatus'])->name('api.comments.updateStatus');
+    });
+
+});
+
 });
 
 
