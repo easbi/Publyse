@@ -3,6 +3,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PublicationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\DocumentController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -48,6 +49,10 @@ Route::middleware('auth')->group(function () {
 
     // Route untuk menyimpan data baru dari form
     Route::post('/publications', [PublicationController::class, 'store'])->name('publications.store');
+
+    // Route untuk menyimpan file PDF versi baru ke publikasi yang sudah ada
+    Route::post('/publications/{publication}/documents', [DocumentController::class, 'store'])->name('documents.store');
+
 
     // Route untuk menampilkan halaman form penugasan pemeriksa
     Route::get('/publications/{publication}/assign', [PublicationController::class, 'assignForm'])->name('publications.assign.form');

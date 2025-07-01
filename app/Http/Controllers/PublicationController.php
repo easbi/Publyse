@@ -15,7 +15,7 @@ class PublicationController extends Controller
     public function index()
     {
         $publications = Publication::latest()->get();
-        // dd($publications); 
+        // dd($publications);
         return view('publications.index', compact('publications'));
     }
 
@@ -71,26 +71,38 @@ class PublicationController extends Controller
     /**
      * Menampilkan detail satu publikasi, termasuk antarmuka reviewer PDF.
      */
-    public function show(Publication $publication)
+    public function show(Request $request, Publication $publication)
     {
         Gate::authorize('view-publication', $publication);
 
-        $latestDocument = $publication->documents()
-            ->with([
-                'comments' => function ($query) {
-                    // Hanya ambil komentar utama (yang tidak punya induk)
-                    $query->whereNull('parent_id')->with('user', 'replies.user'); 
-                },
-            ])
-            ->latest()
-            ->first();
-            
-        if ($latestDocument) {
-            $latestDocument->pdf_url = asset('storage/' . $latestDocument->stored_path);
+        // Ambil semua versi dokumen untuk ditampilkan di dropdown
+        $allVersions = $publication->documents()->orderBy('version', 'desc')->get();
+
+        if ($allVersions->isEmpty()) {
+            // Jika tidak ada dokumen sama sekali
+            return view('publications.show', compact('publication', 'allVersions'));
         }
 
-        return view('publications.show', compact('publication', 'latestDocument'));
+        // Tentukan dokumen mana yang akan ditampilkan
+        // Jika ada parameter 'version' di URL, cari versi itu. Jika tidak, ambil yang terbaru.
+        $versionToShow = $request->query('version')
+            ? $allVersions->where('version', $request->query('version'))->first()
+            : $allVersions->first();
+
+        // Jika versi yang diminta tidak ada, alihkan ke versi terbaru
+        if (!$versionToShow) {
+            return redirect()->route('publications.show', $publication);
         }
+
+        // Eager load komentar untuk versi yang akan ditampilkan
+        $versionToShow->load('comments.user');
+
+        // Pastikan accessor 'pdf_url' disertakan
+        $versionToShow->makeVisible(['pdf_url']);
+
+        return view('publications.show', compact('publication', 'allVersions', 'versionToShow'));
+    }
+
 
     /**
      * Menampilkan form untuk menugaskan pemeriksa ke sebuah publikasi.
@@ -113,7 +125,7 @@ class PublicationController extends Controller
     public function syncReviewers(Request $request, Publication $publication)
     {
         Gate::authorize('manage-publication', $publication);
-        
+
         // Validasi input, pastikan 'reviewers' adalah sebuah array (bisa juga kosong)
         $request->validate([
             'reviewers' => 'nullable|array',

@@ -9,8 +9,8 @@ class Comment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['document_id', 'user_id', 'page_number', 'type', 'position', 'content', 'status'];
-    
+    protected $fillable = ['document_id', 'user_id', 'page_number', 'type', 'position', 'content', 'status', 'parent_id'];
+
     // Memberitahu Laravel bahwa kolom 'position' harus di-handle sebagai JSON
     protected $casts = [
         'position' => 'array',

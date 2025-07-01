@@ -1,18 +1,14 @@
 <!-- resources/js/components/PdfReviewer.vue -->
 <template>
-    <div class="flex h-[80vh] w-full gap-4" :class="{ 'no-select': isDragging }">
+    <div class="flex w-full gap-4" :class="{ 'no-select': isDragging }">
 
         <!-- Main Content: PDF Viewer -->
-        <main class="flex-grow flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
+        <main class="flex-grow flex flex-col bg-white rounded-lg shadow-lg overflow-hidden" style="min-width: 0; flex-shrink: 0;">
             <!-- Header Kontrol -->
             <header class="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
                 <div class="flex items-center gap-4">
                     <h1 class="text-xl font-bold text-gray-700">Versi: {{ document.version }}</h1>
-                    <button @click="loginTest" class="bg-green-500 text-white px-4 py-2 rounded">Login Test</button>
-
-
-
-                    <a :href="pdfUrl" target="_blank" class="text-sm text-blue-600 hover:underline">Buka PDF di Tab Baru</a>
+                    <!-- <a :href="pdfUrl" target="_blank" class="text-sm text-blue-600 hover:underline">Buka PDF di Tab Baru</a> -->
                 </div>
 
                 <!-- Kontrol Navigasi PDF -->
@@ -30,9 +26,11 @@
             </header>
 
             <!-- Area Tampilan PDF -->
-            <div class="flex-grow p-4 overflow-auto flex justify-center items-start bg-gray-200">
-                <div v-if="isLoading" class="flex items-center justify-center h-full"><span class="text-gray-500">Memuat PDF...</span></div>
-                <div v-if="pdfDoc" id="pdf-container">
+            <div class="flex-grow p-4 overflow-auto flex justify-center items-start bg-gray-200" style="min-height: 0;">
+                <div v-if="isLoading" class="flex items-center justify-center h-full">
+                    <span class="text-gray-500">Memuat PDF...</span>
+                </div>
+                <div v-if="pdfDoc" id="pdf-container" class="relative">
                     <canvas id="pdf-canvas"></canvas>
                     <svg id="annotation-layer"
                         @mousedown="startSelection"
@@ -78,7 +76,7 @@
                                 :width="parsePosition(comment.position).width || 0"
                                 :height="parsePosition(comment.position).height || 0"
                                 stroke="#3b82f6"
-                                fill="#3b82f6">
+                                fill="rgba(59, 130, 246, 0.2)">
                             </rect>
                         </g>
 
@@ -98,70 +96,77 @@
         </main>
 
         <!-- Sidebar: Daftar Komentar -->
-        <aside class="w-1/3 max-w-md flex flex-col bg-white rounded-lg shadow-lg">
-            <div class="p-4 border-b">
+        <aside class="w-80 flex-shrink-0 bg-white rounded-lg shadow-lg flex flex-col" style="height: 95vh;">
+            <div class="p-4 border-b flex-shrink-0">
                 <h2 class="text-xl font-bold text-gray-700">Daftar Komentar</h2>
                 <div class="mt-3 flex gap-2">
-                    <button @click="commentFilter = 'all'" :class="{'bg-blue-500 text-white': commentFilter === 'all'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Semua</button>
-                    <button @click="commentFilter = 'open'" :class="{'bg-blue-500 text-white': commentFilter === 'open'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Terbuka</button>
-                    <button @click="commentFilter = 'done'" :class="{'bg-blue-500 text-white': commentFilter === 'done'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Selesai</button>
+                    <button @click="applyFilter('all')" :class="{'bg-blue-500 text-white': commentFilter === 'all'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Semua</button>
+                    <button @click="applyFilter('open')" :class="{'bg-blue-500 text-white': commentFilter === 'open'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Terbuka</button>
+                    <button @click="applyFilter('done')" :class="{'bg-blue-500 text-white': commentFilter === 'done'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Selesai</button>
                 </div>
             </div>
-            <div v-if="filteredComments.length === 0" class="flex-grow flex items-center justify-center"><p class="text-gray-500">Tidak ada komentar.</p></div>
-            <ul v-else class="flex-grow overflow-y-auto p-2 space-y-2">
-                <!-- Loop Komentar Utama -->
-                <li v-for="comment in filteredComments" :key="comment.id" class="p-3 rounded-lg border border-gray-200" :class="comment.status === 'done' ? 'bg-green-50' : 'bg-white'">
-                    <div class="flex justify-between items-start gap-3">
-                        <div class="flex-grow">
-                            <p class="text-xs font-semibold text-gray-600 cursor-pointer" @click="handleGoToComment(comment)">{{ comment.user.name }}</p>
+            <div class="flex-1 overflow-y-auto">
+                <div v-if="displayedComments.length === 0" class="flex-grow flex items-center justify-center p-4">
+                    <p class="text-gray-500 text-center">Tidak ada komentar yang cocok dengan filter ini.</p>
+                </div>
+            <div v-else class="flex-grow min-h-0 overflow-hidden">
+                    <ul class="h-full overflow-y-auto p-2 space-y-2" ref="commentListEl">
+                        <!-- Loop Komentar Utama -->
+                        <!-- <li v-for="comment in filteredComments" :key="comment.id" class="p-3 rounded-lg border border-gray-200" :class="comment.status === 'done' ? 'bg-green-50' : 'bg-white'"> -->
+                        <li v-for="comment in displayedComments" :key="comment.id" :ref="el => { if (el) commentElements[comment.id] = el }" @click="setActiveComment(comment)" class="p-3 rounded-lg border transition-colors" :class="[ comment.status === 'done' ? 'bg-green-50' : 'bg-white', comment.id === activeCommentId ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 cursor-pointer hover:bg-blue-50' ]">
+                            <div class="flex justify-between items-start gap-3">
+                                <div class="flex-grow">
+                                    <p class="text-xs font-semibold text-gray-600 cursor-pointer" @click="handleGoToComment(comment)">{{ comment.user.name }}</p>
 
-                            <!-- Form Edit Tampil di sini jika editingComment aktif -->
-                            <div v-if="editingComment && editingComment.id === comment.id">
-                                <textarea v-model="commentEditText" class="w-full border rounded-md p-1 mt-1 text-sm"></textarea>
-                                <div class="flex gap-2 mt-1">
-                                    <button @click="saveEdit(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Simpan</button>
-                                    <button @click="cancelEdit" class="text-xs text-gray-600">Batal</button>
+                                    <!-- Form Edit Tampil di sini jika editingComment aktif -->
+                                    <div v-if="editingComment && editingComment.id === comment.id">
+                                        <textarea v-model="commentEditText" class="w-full border rounded-md p-1 mt-1 text-sm resize-none" rows="3"></textarea>
+                                        <div class="flex gap-2 mt-1">
+                                            <button @click="saveEdit(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Simpan</button>
+                                            <button @click="cancelEdit" class="text-xs text-gray-600">Batal</button>
+                                        </div>
+                                    </div>
+                                    <!-- Teks Komentar Tampil di sini -->
+                                    <p v-else class="text-sm text-gray-800 break-words cursor-pointer" :class="{'line-through text-gray-500': comment.status === 'done'}" @click="handleGoToComment(comment)">{{ comment.content }}</p>
+
+                                    <!-- Tombol Aksi -->
+                                    <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                                        <button @click="startReply(comment)" class="hover:underline">Balas</button>
+                                        <template v-if="currentUser.id === comment.user_id">
+                                            <span>·</span>
+                                            <button @click="startEdit(comment)" class="hover:underline">Edit</button>
+                                            <span>·</span>
+                                            <button @click="deleteComment(comment)" class="hover:underline text-red-500">Hapus</button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col items-end gap-2">
+                                    <span v-if="comment.page_number" class="text-xs font-semibold bg-gray-200 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap cursor-pointer" @click="handleGoToComment(comment)">Hal. {{ comment.page_number }}</span>
+                                    <input type="checkbox" :checked="comment.status === 'done'" @change="toggleCommentStatus(comment)" @click.stop class="form-checkbox h-5 w-5 rounded text-green-600 transition duration-150 ease-in-out cursor-pointer">
                                 </div>
                             </div>
-                             <!-- Teks Komentar Tampil di sini -->
-                            <p v-else class="text-sm text-gray-800 break-words cursor-pointer" :class="{'line-through text-gray-500': comment.status === 'done'}" @click="handleGoToComment(comment)">{{ comment.content }}</p>
 
-                            <!-- Tombol Aksi -->
-                            <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                                <button @click="startReply(comment)" class="hover:underline">Balas</button>
-                                <template v-if="currentUser.id === comment.user_id">
-                                    <span>·</span>
-                                    <button @click="startEdit(comment)" class="hover:underline">Edit</button>
-                                    <span>·</span>
-                                    <button @click="deleteComment(comment)" class="hover:underline text-red-500">Hapus</button>
-                                </template>
+                            <!-- Form untuk Balasan Baru -->
+                            <div v-if="replyingToComment && replyingToComment.id === comment.id" class="mt-3 ml-6">
+                                <textarea v-model="replyText" class="w-full border rounded-md p-1 text-sm" placeholder="Tulis balasan..."></textarea>
+                                <div class="flex gap-2 mt-1">
+                                    <button @click="submitReply(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Kirim</button>
+                                    <button @click="cancelReply" class="text-xs text-gray-600">Batal</button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex flex-col items-end gap-2">
-                            <span v-if="comment.page_number" class="text-xs font-semibold bg-gray-200 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap cursor-pointer" @click="handleGoToComment(comment)">Hal. {{ comment.page_number }}</span>
-                            <input type="checkbox" :checked="comment.status === 'done'" @change="toggleCommentStatus(comment)" @click.stop class="form-checkbox h-5 w-5 rounded text-green-600 transition duration-150 ease-in-out cursor-pointer">
-                        </div>
-                    </div>
 
-                    <!-- Form untuk Balasan Baru -->
-                    <div v-if="replyingToComment && replyingToComment.id === comment.id" class="mt-3 ml-6">
-                        <textarea v-model="replyText" class="w-full border rounded-md p-1 text-sm" placeholder="Tulis balasan..."></textarea>
-                        <div class="flex gap-2 mt-1">
-                            <button @click="submitReply(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Kirim</button>
-                            <button @click="cancelReply" class="text-xs text-gray-600">Batal</button>
-                        </div>
-                    </div>
+                            <!-- Daftar Balasan (Replies) -->
+                            <ul v-if="comment.replies && comment.replies.length > 0" class="mt-3 ml-6 pl-4 border-l-2 border-gray-200 space-y-3">
+                                <li v-for="reply in comment.replies" :key="reply.id">
+                                    <p class="text-xs font-semibold text-gray-600">{{ reply.user.name }}</p>
+                                    <p class="text-sm text-gray-700">{{ reply.content }}</p>
+                                </li>
+                            </ul>
 
-                    <!-- Daftar Balasan (Replies) -->
-                    <ul v-if="comment.replies && comment.replies.length > 0" class="mt-3 ml-6 pl-4 border-l-2 border-gray-200 space-y-3">
-                        <li v-for="reply in comment.replies" :key="reply.id">
-                            <p class="text-xs font-semibold text-gray-600">{{ reply.user.name }}</p>
-                            <p class="text-sm text-gray-700">{{ reply.content }}</p>
                         </li>
                     </ul>
-
-                </li>
-            </ul>
+            </div>
+            </div>
         </aside>
 
         <!-- Modal Komentar Baru -->
@@ -204,6 +209,25 @@
     .highlighted-area-done { animation: highlight-area-done-anim 1.5s ease; }
     @keyframes highlight-area-done-anim { 0% { fill: rgba(253, 224, 71, 0.7); } 100% { fill: rgba(22, 163, 74, 0.2); } }
     .no-select { -webkit-user-select: none; -ms-user-select: none; user-select: none; }
+
+    /* Pastikan scrollbar terlihat */
+    .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e0 #f7fafc;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: #f7fafc;
+    }
+
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 3px;
+    }
 </style>
 
 <script setup>
@@ -267,7 +291,40 @@ const commentEditText = ref('');
 const replyingToComment = ref(null);
 const replyText = ref('');
 
+const activeCommentId = ref(null);
+const commentListEl = ref(null);
+const commentElements = ref({});
+
+
+
+// 1. State baru untuk menampung komentar yang akan ditampilkan
+const displayedComments = ref([]);
+// 2. Computed property ini sekarang hanya untuk mengurutkan, bukan memfilter
+const sortedComments = computed(() => {
+    return [...comments.value].sort((a, b) => a.page_number - b.page_number || a.id - b.id);
+});
+
+// 3. Fungsi baru untuk menerapkan filter secara manual
+const applyFilter = (filterType) => {
+    commentFilter.value = filterType; // Update status filter aktif
+
+    if (filterType === 'all') {
+        displayedComments.value = sortedComments.value;
+    } else {
+        displayedComments.value = sortedComments.value.filter(c => c.status === filterType);
+    }
+};
+// 4. Gunakan 'watch' untuk menerapkan filter secara otomatis saat data siap
+watch(sortedComments, (newSortedList) => {
+    // Saat daftar komentar utama (sortedComments) siap atau berubah,
+    // terapkan kembali filter yang sedang aktif.
+    applyFilter(commentFilter.value);
+}, { immediate: true }); // 'immediate: true' akan menjalankan watcher ini sekali saat komponen dimuat
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
+
+
 
 onMounted(async () => {
     console.log("Component mounted");
@@ -393,6 +450,7 @@ const toggleCommentStatus = async (comment) => {
     try {
         const url = props.apiStatusUrlTemplate.replace('COMMENT_ID', comment.id);
         await axios.patch(url, { status: newStatus });
+        comment.status = newStatus; // Cukup update statusnya, biarkan tetap di list
     } catch (error) {
         console.error("Gagal mengubah status:", error);
         alert('Terjadi kesalahan saat mengubah status.');
@@ -408,28 +466,21 @@ const handleGoToComment = async (comment) => {
 };
 
 // --- FUNGSI DIPERBAIKI ---
+
 const saveComment = async () => {
     if (!newCommentData.value.content.trim()) return;
-
     const payload = { ...newCommentData.value, document_id: props.document.id };
-
-    // PERBAIKAN: Ubah objek 'position' menjadi string JSON
     if (payload.position) {
         payload.position = JSON.stringify(payload.position);
     }
-
     try {
         const response = await axios.post(props.apiStoreUrl, payload);
-        comments.value.push(response.data);
+        let newCommentFromServer = response.data;
+        newCommentFromServer.position = parsePosition(newCommentFromServer.position);
+        comments.value.push(newCommentFromServer);
+        // applyFilter(commentFilter.value); // Tidak perlu lagi, 'watch' akan menanganinya
         cancelComment();
-    } catch (error) {
-        console.error("Gagal menyimpan komentar:", error);
-        if (error.response && error.response.data.message) {
-            alert(`Gagal menyimpan: ${error.response.data.message}`);
-        } else {
-            alert('Terjadi kesalahan saat menyimpan komentar.');
-        }
-    }
+    } catch (error) { /* ... */ }
 };
 
 
@@ -491,71 +542,38 @@ const debugComments = () => {
     });
 };
 
-const deleteComment = async (commentToDelete) => {
-    if (!confirm('Anda yakin ingin menghapus komentar ini dan semua balasannya?')) {
-        return;
+// Fungsi baru yang bisa mencari dan menghapus komentar dari mana saja (induk atau balasan)
+const removeCommentFromTree = (commentsArray, commentId) => {
+    // Coba hapus dari level saat ini
+    const filtered = commentsArray.filter(c => c.id !== commentId);
+
+    // Jika tidak ada yang terhapus, berarti komentar ada di dalam balasan.
+    // Kita perlu mencari di dalam setiap balasan.
+    if (filtered.length === commentsArray.length) {
+        return commentsArray.map(parentComment => {
+            if (parentComment.replies && parentComment.replies.length > 0) {
+                // Panggil fungsi ini lagi untuk array balasan (rekursif)
+                parentComment.replies = removeCommentFromTree(parentComment.replies, commentId);
+            }
+            return parentComment;
+        });
     }
 
-    try {
-        // Debug: Log URL yang akan dipanggil
-        const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
-        console.log('Attempting to delete comment with URL:', url);
+    // Jika komentar ditemukan di level ini, kembalikan array yang sudah difilter.
+    return filtered;
+};
 
-        // Tambahkan headers yang mungkin diperlukan
-        const response = await axios.delete(url, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        console.log('Delete successful:', response.data);
-
-        // Hapus dari local state setelah berhasil hapus di server
-        const index = comments.value.findIndex(c => c.id === commentToDelete.id);
-        if (index !== -1) {
-            comments.value.splice(index, 1);
-        }
-
-        // Bersihkan state terkait
-        if (highlightedCommentId.value === commentToDelete.id) {
-            highlightedCommentId.value = null;
-        }
-
-        if (editingComment.value?.id === commentToDelete.id) {
-            cancelEdit();
-        }
-
-        if (replyingToComment.value?.id === commentToDelete.id) {
-            cancelReply();
-        }
-
-        // Tampilkan pesan sukses
-        alert('Komentar berhasil dihapus.');
-
-    } catch (error) {
-        console.error("Gagal menghapus komentar:", error);
-        console.error("Error response:", error.response);
-
-        if (error.response?.status === 500) {
-            alert('Terjadi kesalahan server (500). Cek konsol browser dan log server untuk detail.');
-        } else if (error.response?.status === 404) {
-            alert('Komentar tidak ditemukan. Mungkin sudah dihapus sebelumnya.');
-            // Hapus dari local state juga
-            const index = comments.value.findIndex(c => c.id === commentToDelete.id);
-            if (index !== -1) {
-                comments.value.splice(index, 1);
-            }
-        } else if (error.response?.status === 403) {
-            alert('Anda tidak memiliki izin untuk menghapus komentar ini.');
-        } else if (error.response?.data?.message) {
-            alert(`Gagal menghapus komentar: ${error.response.data.message}`);
-        } else {
-            alert('Terjadi kesalahan saat menghapus komentar.');
-        }
+const deleteComment = async (commentToDelete) => {
+    if (confirm('Anda yakin ingin menghapus komentar ini?')) {
+        try {
+            const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
+            await axios.delete(url);
+            comments.value = removeCommentFromTree(comments.value, commentToDelete.id);
+            // applyFilter(commentFilter.value); // Tidak perlu lagi, 'watch' akan menanganinya
+        } catch (error) { /* ... */ }
     }
 };
+
 
 const startReply = (comment) => {
     replyingToComment.value = comment;
