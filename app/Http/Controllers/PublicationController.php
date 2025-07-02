@@ -6,6 +6,7 @@ use App\Models\Publication;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 
 class PublicationController extends Controller
 {
@@ -65,6 +66,54 @@ class PublicationController extends Controller
         // Alihkan pengguna kembali ke halaman daftar dengan pesan sukses
         return redirect()->route('publications.index')
                          ->with('success', 'Publikasi baru berhasil ditambahkan!');
+    }
+
+    /**
+     * Menampilkan form untuk mengedit publikasi yang sudah ada.
+     */
+    public function edit(Publication $publication)
+    {
+        // Otorisasi: Hanya pembuat yang boleh mengedit
+        $this->authorize('manage-publication', $publication);
+
+        return view('publications.edit', compact('publication'));
+    }
+
+    /**
+     * Memperbarui data publikasi di database.
+     */
+    public function update(Request $request, Publication $publication)
+    {
+        $this->authorize('manage-publication', $publication);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:200',
+            'release_date' => 'required|date',
+            'review_deadline' => 'required|date|after_or_equal:today',
+        ]);
+
+        $publication->update($validated);
+
+        return redirect()->route('dashboard')->with('success', 'Data publikasi berhasil diperbarui.');
+    }
+
+    /**
+     * Menghapus publikasi dan semua file terkait.
+     */
+    public function destroy(Publication $publication)
+    {
+        $this->authorize('manage-publication', $publication);
+
+        // Praktik terbaik: Hapus file fisik dari storage sebelum menghapus record database
+        foreach ($publication->documents as $document) {
+            Storage::disk('public')->delete($document->stored_path);
+        }
+
+        $publication->delete();
+
+        return redirect()->route('dashboard')->with('success', 'Publikasi berhasil dihapus.');
+
+        // Hapus re redirect()->route('dashboard')->with('success', 'Publikasi berhasil dihapus.');
     }
 
 

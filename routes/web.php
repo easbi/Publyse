@@ -4,6 +4,8 @@ use App\Http\Controllers\PublicationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\DocumentController;
+use Illuminate\Support\Facades\Auth;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -14,9 +16,7 @@ use App\Http\Controllers\DocumentController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
-Route::get('/', function () {
-    return view('welcome');
-});
+
 
 Route::post('/login', function (Request $request) {
     $credentials = $request->only('email', 'password');
@@ -31,6 +31,16 @@ Route::post('/login', function (Request $request) {
 
 Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['csrf' => true]);
+});
+
+Route::get('/', function () {
+    // Cek apakah pengguna sudah login
+    if (Auth::check()) {
+        // Jika ya, arahkan ke route yang bernama 'dashboard'
+        return redirect()->route('dashboard');
+    }
+    // Jika tidak, tampilkan halaman selamat datang
+    return view('welcome');
 });
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
@@ -53,6 +63,14 @@ Route::middleware('auth')->group(function () {
     // Route untuk menyimpan file PDF versi baru ke publikasi yang sudah ada
     Route::post('/publications/{publication}/documents', [DocumentController::class, 'store'])->name('documents.store');
 
+    // Route untuk menampilkan halaman form edit
+    Route::get('/publications/{publication}/edit', [PublicationController::class, 'edit'])->name('publications.edit');
+
+    // Route untuk memproses update dari form edit
+    Route::put('/publications/{publication}', [PublicationController::class, 'update'])->name('publications.update');
+
+    // Route untuk menghapus sebuah publikasi
+    Route::delete('/publications/{publication}', [PublicationController::class, 'destroy'])->name('publications.destroy');
 
     // Route untuk menampilkan halaman form penugasan pemeriksa
     Route::get('/publications/{publication}/assign', [PublicationController::class, 'assignForm'])->name('publications.assign.form');

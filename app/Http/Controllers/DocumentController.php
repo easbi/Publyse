@@ -13,33 +13,43 @@ class DocumentController extends Controller
      */
     public function store(Request $request, Publication $publication)
     {
-        // Otorisasi: Hanya pembuat publikasi yang boleh mengunggah versi baru
         $this->authorize('manage-publication', $publication);
 
-        // Validasi file yang diunggah
         $request->validate([
-            'document_file' => 'required|file|mimes:pdf|max:10240', // max 10MB
+            'document_file' => 'required|file|mimes:pdf|max:10240',
+            'thumbnail_data' => 'nullable|string', // Validasi data gambar base64
         ]);
 
-        // Tentukan nomor versi baru
-        // Ambil versi terakhir, lalu tambahkan 1. Jika belum ada, mulai dari 1.
         $lastVersion = $publication->documents()->max('version') ?? 0;
         $newVersion = $lastVersion + 1;
 
-        // Simpan file ke storage
-        $path = $request->file('document_file')->store('documents', 'public');
+        $file = $request->file('document_file');
+        $path = $file->store('documents', 'public');
 
-        // Buat record baru di tabel documents
+        $thumbnailPath = null;
+        // Cek jika ada data thumbnail yang dikirim
+        if ($request->filled('thumbnail_data')) {
+            try {
+                // Decode data base64 dan simpan sebagai file
+                $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $request->input('thumbnail_data')));
+                $thumbnailPath = 'thumbnails/' . pathinfo($path, PATHINFO_FILENAME) . '.jpg';
+                Storage::disk('public')->put($thumbnailPath, $imageData);
+            } catch (\Exception $e) {
+                report($e);
+                $thumbnailPath = null;
+            }
+        }
+
         Document::create([
             'publication_id' => $publication->id,
-            'original_filename' => $request->file('document_file')->getClientOriginalName(),
+            'original_filename' => $file->getClientOriginalName(),
             'stored_path' => $path,
+            'thumbnail_path' => $thumbnailPath,
             'version' => $newVersion,
             'uploader_id' => auth()->id(),
         ]);
 
-        // Alihkan kembali ke halaman review (sekarang akan menampilkan versi terbaru)
         return redirect()->route('publications.show', $publication)
-                         ->with('success', 'Versi baru (v'.$newVersion.') berhasil diunggah!');
+                        ->with('success', 'Versi baru (v'.$newVersion.') berhasil diunggah!');
     }
 }

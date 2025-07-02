@@ -1,11 +1,11 @@
 <!-- resources/js/components/PdfReviewer.vue -->
 <template>
-    <div class="flex w-full gap-4" :class="{ 'no-select': isDragging }">
+    <div class="flex flex-col lg:grid lg:grid-cols-7 lg:gap-6 w-full p-4" :class="{ 'no-select': isDragging }">
 
         <!-- Main Content: PDF Viewer -->
-        <main class="flex-grow flex flex-col bg-white rounded-lg shadow-lg overflow-hidden" style="min-width: 0; flex-shrink: 0;">
+        <main class="lg:col-span-5 flex flex-col bg-white rounded-lg shadow-lg overflow-hidden h-screen lg:h-auto" style="min-width: 0; flex-shrink: 0;">
             <!-- Header Kontrol -->
-            <header class="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200">
+            <header class="flex items-center justify-between p-4 bg-white border-b border-gray-200">
                 <div class="flex items-center gap-4">
                     <h1 class="text-xl font-bold text-gray-700">Versi: {{ document.version }}</h1>
                     <!-- <a :href="pdfUrl" target="_blank" class="text-sm text-blue-600 hover:underline">Buka PDF di Tab Baru</a> -->
@@ -26,7 +26,7 @@
             </header>
 
             <!-- Area Tampilan PDF -->
-            <div class="flex-grow p-4 overflow-auto flex justify-center items-start bg-gray-200" style="min-height: 0;">
+            <div class="flex-grow p-4 overflow-auto flex justify-center items-start bg-gray-100" style="min-height: 500px;">
                 <div v-if="isLoading" class="flex items-center justify-center h-full">
                     <span class="text-gray-500">Memuat PDF...</span>
                 </div>
@@ -95,8 +95,9 @@
             </div>
         </main>
 
-        <!-- Sidebar: Daftar Komentar -->
-        <aside class="w-80 flex-shrink-0 bg-white rounded-lg shadow-lg flex flex-col" style="height: 95vh;">
+        <!-- Sidebar: Daftar Komentar - UKURAN DIPERLEBAR 1,5x -->
+        <aside class="lg:col-span-2 bg-white rounded-lg shadow-lg flex flex-col mt-4 lg:mt-0 h-[80vh] lg:h-screen">
+        <!-- <aside class="w-120 flex-shrink-0 bg-white rounded-lg shadow-lg flex flex-col" style="height: 95vh;"> -->
             <div class="p-4 border-b flex-shrink-0">
                 <h2 class="text-xl font-bold text-gray-700">Daftar Komentar</h2>
                 <div class="mt-3 flex gap-2">
@@ -109,75 +110,123 @@
                 <div v-if="displayedComments.length === 0" class="flex-grow flex items-center justify-center p-4">
                     <p class="text-gray-500 text-center">Tidak ada komentar yang cocok dengan filter ini.</p>
                 </div>
-            <div v-else class="flex-grow min-h-0 overflow-hidden">
-                    <ul class="h-full overflow-y-auto p-2 space-y-2" ref="commentListEl">
+                <div v-else class="flex-grow min-h-0 overflow-hidden">
+                    <ul class="h-full overflow-y-auto p-3 space-y-3" ref="commentListEl">
                         <!-- Loop Komentar Utama -->
-                        <!-- <li v-for="comment in filteredComments" :key="comment.id" class="p-3 rounded-lg border border-gray-200" :class="comment.status === 'done' ? 'bg-green-50' : 'bg-white'"> -->
-                        <li v-for="comment in displayedComments" :key="comment.id" :ref="el => { if (el) commentElements[comment.id] = el }" @click="setActiveComment(comment)" class="p-3 rounded-lg border transition-colors" :class="[ comment.status === 'done' ? 'bg-green-50' : 'bg-white', comment.id === activeCommentId ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 cursor-pointer hover:bg-blue-50' ]">
-                            <div class="flex justify-between items-start gap-3">
-                                <div class="flex-grow">
-                                    <p class="text-xs font-semibold text-gray-600 cursor-pointer" @click="handleGoToComment(comment)">{{ comment.user.name }}</p>
+                        <li v-for="comment in displayedComments"
+                            :key="comment.id"
+                            :ref="el => { if (el) commentElements[comment.id] = el }"
+                            @click="setActiveComment(comment)"
+                            class="comment-item border transition-colors rounded-lg overflow-hidden"
+                            :class="[
+                                comment.status === 'done' ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200',
+                                comment.id === activeCommentId ? 'border-yellow-400 bg-yellow-50' : 'cursor-pointer hover:bg-blue-50'
+                            ]">
 
-                                    <!-- Form Edit Tampil di sini jika editingComment aktif -->
-                                    <div v-if="editingComment && editingComment.id === comment.id">
-                                        <textarea v-model="commentEditText" class="w-full border rounded-md p-1 mt-1 text-sm resize-none" rows="3"></textarea>
-                                        <div class="flex gap-2 mt-1">
-                                            <button @click="saveEdit(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Simpan</button>
-                                            <button @click="cancelEdit" class="text-xs text-gray-600">Batal</button>
-                                        </div>
+                            <div class="p-4">
+                                <!-- Header dengan nama user dan halaman -->
+                                <div class="flex justify-between items-start gap-3 mb-3">
+                                    <div class="comment-header">
+                                        <p class="text-sm font-semibold text-gray-600 cursor-pointer" @click="handleGoToComment(comment)">
+                                            {{ comment.user.name }}
+                                        </p>
                                     </div>
-                                    <!-- Teks Komentar Tampil di sini -->
-                                    <p v-else class="text-sm text-gray-800 break-words cursor-pointer" :class="{'line-through text-gray-500': comment.status === 'done'}" @click="handleGoToComment(comment)">{{ comment.content }}</p>
 
-                                    <!-- Tombol Aksi -->
-                                    <div class="mt-2 flex items-center gap-3 text-xs text-gray-500">
-                                        <button @click="startReply(comment)" class="hover:underline">Balas</button>
-                                        <template v-if="currentUser.id === comment.user_id">
-                                            <span>·</span>
-                                            <button @click="startEdit(comment)" class="hover:underline">Edit</button>
-                                            <span>·</span>
-                                            <button @click="deleteComment(comment)" class="hover:underline text-red-500">Hapus</button>
-                                        </template>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <span v-if="comment.page_number"
+                                              class="text-xs font-semibold bg-gray-200 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap cursor-pointer"
+                                              @click="handleGoToComment(comment)">
+                                            Hal. {{ comment.page_number }}
+                                        </span>
+                                        <input type="checkbox"
+                                               :checked="comment.status === 'done'"
+                                               @change="toggleCommentStatus(comment)"
+                                               @click.stop
+                                               class="form-checkbox h-4 w-4 rounded text-green-600 transition duration-150 ease-in-out cursor-pointer">
                                     </div>
                                 </div>
-                                <div class="flex flex-col items-end gap-2">
-                                    <span v-if="comment.page_number" class="text-xs font-semibold bg-gray-200 text-gray-700 px-2 py-1 rounded-full whitespace-nowrap cursor-pointer" @click="handleGoToComment(comment)">Hal. {{ comment.page_number }}</span>
-                                    <input type="checkbox" :checked="comment.status === 'done'" @change="toggleCommentStatus(comment)" @click.stop class="form-checkbox h-5 w-5 rounded text-green-600 transition duration-150 ease-in-out cursor-pointer">
+
+                                <!-- Konten Komentar -->
+                                <div class="comment-content-wrapper">
+                                    <!-- Form Edit -->
+                                    <div v-if="editingComment && editingComment.id === comment.id" class="mb-3">
+                                        <textarea
+                                            v-model="commentEditText"
+                                            class="comment-textarea w-full border rounded-md p-3 text-sm resize-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                            rows="3">
+                                        </textarea>
+                                        <div class="flex gap-2 mt-2">
+                                            <button @click="saveEdit(comment)" class="text-xs text-white bg-blue-500 px-3 py-1 rounded-md hover:bg-blue-600">Simpan</button>
+                                            <button @click="cancelEdit" class="text-xs text-gray-600 hover:text-gray-800">Batal</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Teks Komentar -->
+                                    <div v-else class="comment-content cursor-pointer mb-3"
+                                         :class="{'line-through text-gray-500': comment.status === 'done'}"
+                                         @click="handleGoToComment(comment)">
+                                        {{ comment.content }}
+                                    </div>
+                                </div>
+
+                                <!-- Tombol Aksi -->
+                                <div class="flex items-center gap-3 text-xs text-gray-500 border-t pt-2">
+                                    <button @click="startReply(comment)" class="hover:underline hover:text-blue-600">Balas</button>
+                                    <template v-if="currentUser.id === comment.user_id">
+                                        <span>·</span>
+                                        <button @click="startEdit(comment)" class="hover:underline hover:text-blue-600">Edit</button>
+                                        <span>·</span>
+                                        <button @click="deleteComment(comment)" class="hover:underline text-red-500 hover:text-red-700">Hapus</button>
+                                    </template>
                                 </div>
                             </div>
 
                             <!-- Form untuk Balasan Baru -->
-                            <div v-if="replyingToComment && replyingToComment.id === comment.id" class="mt-3 ml-6">
-                                <textarea v-model="replyText" class="w-full border rounded-md p-1 text-sm" placeholder="Tulis balasan..."></textarea>
-                                <div class="flex gap-2 mt-1">
-                                    <button @click="submitReply(comment)" class="text-xs text-white bg-blue-500 px-2 py-1 rounded-md">Kirim</button>
-                                    <button @click="cancelReply" class="text-xs text-gray-600">Batal</button>
+                            <div v-if="replyingToComment && replyingToComment.id === comment.id" class="px-4 pb-4">
+                                <div class="ml-4 pl-4 border-l-2 border-gray-200">
+                                    <textarea
+                                        v-model="replyText"
+                                        class="comment-textarea w-full border rounded-md p-3 text-sm focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                        placeholder="Tulis balasan..."
+                                        rows="2">
+                                    </textarea>
+                                    <div class="flex gap-2 mt-2">
+                                        <button @click="submitReply(comment)" class="text-xs text-white bg-blue-500 px-3 py-1 rounded-md hover:bg-blue-600">Kirim</button>
+                                        <button @click="cancelReply" class="text-xs text-gray-600 hover:text-gray-800">Batal</button>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Daftar Balasan (Replies) -->
-                            <ul v-if="comment.replies && comment.replies.length > 0" class="mt-3 ml-6 pl-4 border-l-2 border-gray-200 space-y-3">
-                                <li v-for="reply in comment.replies" :key="reply.id">
-                                    <p class="text-xs font-semibold text-gray-600">{{ reply.user.name }}</p>
-                                    <p class="text-sm text-gray-700">{{ reply.content }}</p>
-                                </li>
-                            </ul>
-
+                            <div v-if="comment.replies && comment.replies.length > 0" class="px-4 pb-4">
+                                <div class="ml-4 pl-4 border-l-2 border-gray-200 space-y-2">
+                                    <div v-for="reply in comment.replies" :key="reply.id" class="bg-gray-50 p-3 rounded-md">
+                                        <p class="text-xs font-semibold text-gray-600 mb-1">{{ reply.user.name }}</p>
+                                        <div class="comment-content text-sm text-gray-700">{{ reply.content }}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </li>
                     </ul>
-            </div>
+                </div>
             </div>
         </aside>
 
         <!-- Modal Komentar Baru -->
-        <div v-if="showCommentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <!-- Perbaikan: Ukuran modal diatur di sini -->
-            <div class="bg-white rounded-lg shadow-xl p-4 w-full max-w-sm sm:max-w-xs">
-                <h3 class="text-lg font-bold mb-4">Tambahkan Komentar</h3>
-                <textarea v-model="newCommentData.content" ref="commentTextarea" class="w-full border rounded-md p-2 h-28" placeholder="Tulis komentar Anda di sini..."></textarea>
-                <div class="mt-4 flex justify-end gap-3">
-                    <button @click="cancelComment" class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400">Batal</button>
-                    <button @click="saveComment" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Simpan</button>
+        <div v-if="showCommentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <!-- Modal yang diperpanjang 2x -->
+            <div class="bg-white rounded-lg shadow-xl p-6 w-[60rem] max-w-[90vw]">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700">Komentar Baru</h3>
+                <textarea
+                    v-model="newCommentData.content"
+                    ref="commentTextarea"
+                    class="comment-textarea w-full border border-gray-300 rounded-md p-4 text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    placeholder="Tulis komentar..."
+                    rows="4">
+                </textarea>
+                <div class="mt-6 flex justify-end gap-4">
+                    <button @click="cancelComment" class="px-6 py-3 bg-gray-300 rounded-md hover:bg-gray-400 text-sm">Batal</button>
+                    <button @click="saveComment" class="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">Simpan</button>
                 </div>
             </div>
         </div>
@@ -196,6 +245,63 @@
         cursor: crosshair;
         z-index: 10;
     }
+
+    /* CSS untuk text wrapping yang SANGAT KUAT */
+    .comment-content {
+        word-wrap: break-word !important;
+        word-break: break-all !important;
+        overflow-wrap: anywhere !important;
+        hyphens: auto;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        font-size: 0.875rem; /* 14px */
+    }
+
+    .comment-item {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    .comment-content-wrapper {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        overflow: hidden;
+    }
+
+    .comment-header {
+        min-width: 0;
+        flex: 1;
+    }
+
+    /* Textarea dengan wrapping yang baik */
+    .comment-textarea {
+        word-wrap: break-word !important;
+        word-break: break-all !important;
+        overflow-wrap: anywhere !important;
+        white-space: pre-wrap;
+        resize: vertical;
+        min-height: 60px;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* Memastikan sidebar LEBIH LEBAR 1.5x - dari 320px jadi 480px */
+    aside {
+        min-width: 480px !important;
+        max-width: 480px !important;
+        width: 480px !important;
+    }
+
+    /* Utility class untuk width 480px (w-120 dalam Tailwind = 480px) */
+    .w-120 {
+        width: 30rem; /* 480px */
+    }
+
     /* === AREA PERBAIKAN SELESAI === */
 
     .annotation-point.done-point { fill: #16a34a; }
@@ -251,8 +357,6 @@ const loginTest = async () => {
     }
 };
 
-
-
 const props = defineProps({
     document: Object,
     currentUser: Object,
@@ -295,8 +399,6 @@ const activeCommentId = ref(null);
 const commentListEl = ref(null);
 const commentElements = ref({});
 
-
-
 // 1. State baru untuk menampung komentar yang akan ditampilkan
 const displayedComments = ref([]);
 // 2. Computed property ini sekarang hanya untuk mengurutkan, bukan memfilter
@@ -323,9 +425,6 @@ watch(sortedComments, (newSortedList) => {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
-
-
-
 onMounted(async () => {
     console.log("Component mounted");
 
@@ -343,7 +442,6 @@ onMounted(async () => {
         loadPdfFromUrl();
     });
 });
-
 
 watch(showCommentModal, (isShowing) => { if (isShowing) nextTick(() => { commentTextarea.value?.focus(); }); });
 
@@ -483,7 +581,9 @@ const saveComment = async () => {
     } catch (error) { /* ... */ }
 };
 
-
+const setActiveComment = (comment) => {
+    activeCommentId.value = comment.id;
+};
 
 const startEdit = (comment) => {
     editingComment.value = comment;
@@ -573,7 +673,6 @@ const deleteComment = async (commentToDelete) => {
         } catch (error) { /* ... */ }
     }
 };
-
 
 const startReply = (comment) => {
     replyingToComment.value = comment;
