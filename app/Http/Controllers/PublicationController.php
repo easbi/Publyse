@@ -45,15 +45,25 @@ class PublicationController extends Controller
             'name' => $validated['name'],
             'release_date' => $validated['release_date'],
             'review_deadline' => $validated['review_deadline'],
-            'creator_id' => auth()->id(), // Mengambil ID user yang sedang login
+            'creator_id' => auth()->id(),
         ]);
 
         if ($publication) {
             // Simpan file ke storage/app/public/documents
-            // Laravel akan otomatis membuat nama file yang unik
             $path = $request->file('document_file')->store('documents', 'public');
 
-            // Buat record di tabel documents
+            // Copy file ke public/storage/documents/
+            $source = storage_path('app/public/' . $path);
+            $destination = public_path('storage/' . $path);
+
+            // Buat folder tujuan jika belum ada
+            if (!file_exists(dirname($destination))) {
+                mkdir(dirname($destination), 0755, true);
+            }
+
+            copy($source, $destination);
+
+            // Buat record dokumen di database
             Document::create([
                 'publication_id' => $publication->id,
                 'original_filename' => $request->file('document_file')->getClientOriginalName(),
@@ -63,10 +73,10 @@ class PublicationController extends Controller
             ]);
         }
 
-        // Alihkan pengguna kembali ke halaman daftar dengan pesan sukses
         return redirect()->route('publications.index')
-                         ->with('success', 'Publikasi baru berhasil ditambahkan!');
+                        ->with('success', 'Publikasi baru berhasil ditambahkan!');
     }
+
 
     /**
      * Menampilkan form untuk mengedit publikasi yang sudah ada.
