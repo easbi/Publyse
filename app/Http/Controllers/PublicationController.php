@@ -162,7 +162,7 @@ class PublicationController extends Controller
 
         // Ambil semua user untuk ditampilkan sebagai calon pemeriksa
         // Di aplikasi nyata, Anda mungkin ingin memfilter hanya user dengan role 'pemeriksa'
-        $users = User::orderBy('name')->get();
+        $users = User::orderBy('fullname')->get();
 
         // Kirim data publikasi dan daftar user ke view
         return view('publications.assign', compact('publication', 'users'));
