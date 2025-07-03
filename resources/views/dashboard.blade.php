@@ -62,7 +62,7 @@
                                 <div class="p-4 border rounded-lg dark:border-gray-700">
                                     <p class="font-semibold">{{ $publication->name }}</p>
                                     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                        Dibuat oleh: {{ $publication->creator->name }}
+                                        Dibuat oleh: {{ $publication->creator->fullname }}
                                     </p>
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         <a href="{{ route('publications.summary', $publication) }}" class="px-3 py-1 bg-gray-500 text-white text-xs rounded-md hover:bg-gray-600">Ringkasan</a>

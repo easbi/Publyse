@@ -37,6 +37,20 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         /**
+         * PERBAIKAN: Gate untuk menentukan siapa yang boleh menyelesaikan komentar.
+         * Diizinkan jika user adalah pembuat publikasi ATAU pemilik komentar itu sendiri.
+         */
+        Gate::define('resolve-comment', function (User $user, Comment $comment) {
+            // Cek jika user adalah pembuat komentar
+            if ($user->id === $comment->user_id) {
+                return true;
+            }
+
+            // Cek jika user adalah pembuat publikasi
+            return $user->id === $comment->document->publication->creator_id;
+        });
+
+        /**
          * Gate untuk menentukan siapa yang boleh melihat dan mereview sebuah publikasi.
          * Diizinkan jika user adalah pembuatnya ATAU merupakan salah satu reviewer yang ditugaskan.
          */
