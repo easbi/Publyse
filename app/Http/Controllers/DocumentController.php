@@ -22,31 +22,31 @@ class DocumentController extends Controller
         $lastVersion = $publication->documents()->max('version') ?? 0;
         $newVersion = $lastVersion + 1;
 
-        $file = $request->file('document_file');
+        // SAMA PERSIS dengan PublicationController - menggunakan kondisi if
+        if ($publication) { // Selalu true, tapi konsisten dengan PublicationController
+            // Simpan file ke storage/app/public/documents
+            $path = $request->file('document_file')->store('documents', 'public');
 
-        // SAMA PERSIS dengan PublicationController::store
-        // Simpan file ke storage/app/public/documents
-        $path = $file->store('documents', 'public');
+            // Copy file ke public/storage/documents/
+            $source = storage_path('app/public/' . $path);
+            $destination = public_path('storage/' . $path);
 
-        // Copy file ke public/storage/documents/
-        $source = storage_path('app/public/' . $path);
-        $destination = public_path('storage/' . $path);
+            // Buat folder tujuan jika belum ada
+            if (!file_exists(dirname($destination))) {
+                mkdir(dirname($destination), 0755, true);
+            }
 
-        // Buat folder tujuan jika belum ada
-        if (!file_exists(dirname($destination))) {
-            mkdir(dirname($destination), 0755, true);
+            copy($source, $destination);
+
+            // Buat record dokumen di database
+            Document::create([
+                'publication_id' => $publication->id,
+                'original_filename' => $request->file('document_file')->getClientOriginalName(),
+                'stored_path' => $path,
+                'version' => $newVersion,
+                'uploader_id' => auth()->id(),
+            ]);
         }
-
-        copy($source, $destination);
-
-        // Buat record dokumen di database
-        $document = Document::create([
-            'publication_id' => $publication->id,
-            'original_filename' => $file->getClientOriginalName(),
-            'stored_path' => $path,
-            'version' => $newVersion,
-            'uploader_id' => auth()->id(),
-        ]);
 
         return redirect()->route('publications.show', $publication)
                         ->with('success', 'Versi baru (v'.$newVersion.') berhasil diunggah!');
