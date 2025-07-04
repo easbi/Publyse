@@ -23,9 +23,24 @@ class DocumentController extends Controller
         $newVersion = $lastVersion + 1;
 
         $file = $request->file('document_file');
+
+        // SAMA PERSIS dengan PublicationController::store
+        // Simpan file ke storage/app/public/documents
         $path = $file->store('documents', 'public');
 
-        Document::create([
+        // Copy file ke public/storage/documents/
+        $source = storage_path('app/public/' . $path);
+        $destination = public_path('storage/' . $path);
+
+        // Buat folder tujuan jika belum ada
+        if (!file_exists(dirname($destination))) {
+            mkdir(dirname($destination), 0755, true);
+        }
+
+        copy($source, $destination);
+
+        // Buat record dokumen di database
+        $document = Document::create([
             'publication_id' => $publication->id,
             'original_filename' => $file->getClientOriginalName(),
             'stored_path' => $path,
@@ -37,3 +52,4 @@ class DocumentController extends Controller
                         ->with('success', 'Versi baru (v'.$newVersion.') berhasil diunggah!');
     }
 }
+?>
