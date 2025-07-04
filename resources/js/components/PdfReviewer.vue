@@ -305,12 +305,29 @@
                                 <div v-if="comment.replies && comment.replies.length > 0" class="px-4 pb-4">
                                     <div class="ml-4 pl-4 border-l-2 border-gray-200 space-y-2">
                                         <div v-for="reply in comment.replies" :key="reply.id" class="bg-gray-50 p-3 rounded-md">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <p class="text-xs font-semibold text-gray-600">{{ reply.user.fullname }}</p>
-                                                <span class="text-xs text-gray-400">•</span>
-                                                <span class="text-xs text-gray-400 cursor-help" :title="formatFullDateTime(reply.created_at)">
-                                                    {{ formatRelativeTime(reply.created_at) }}
-                                                </span>
+                                            <div class="flex justify-between items-start gap-3 mb-2">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <p class="text-xs font-semibold text-gray-600">{{ reply.user.fullname }}</p>
+                                                    <span class="text-xs text-gray-400">•</span>
+                                                    <span class="text-xs text-gray-400 cursor-help" :title="formatFullDateTime(reply.created_at)">
+                                                        {{ formatRelativeTime(reply.created_at) }}
+                                                    </span>
+                                                </div>
+
+                                                <!-- Actions untuk reply -->
+                                                <div v-if="currentUser.id === reply.user_id" class="flex items-center gap-2 text-xs text-gray-500">
+                                                    <button
+                                                        @click="startEditReply(reply)"
+                                                        class="hover:underline hover:text-blue-600">
+                                                        Edit
+                                                    </button>
+                                                    <span>·</span>
+                                                    <button
+                                                        @click="deleteReply(comment, reply)"
+                                                        class="hover:underline text-red-500 hover:text-red-700">
+                                                        Hapus
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             <!-- Tampilkan jika balasan sudah diedit -->
@@ -320,7 +337,23 @@
                                                 </span>
                                             </div>
 
-                                            <div class="comment-content text-sm text-gray-700">{{ reply.content }}</div>
+                                            <!-- Reply content atau form edit -->
+                                            <div v-if="editingReply && editingReply.id === reply.id" class="mb-2">
+                                                <textarea
+                                                    v-model="replyEditText"
+                                                    class="comment-textarea w-full border rounded-md p-2 text-sm resize-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                    rows="2">
+                                                </textarea>
+                                                <div class="flex gap-2 mt-2">
+                                                    <button
+                                                        @click="saveEditReply(comment, reply)"
+                                                        class="text-xs text-white bg-blue-500 px-3 py-1 rounded-md hover:bg-blue-600">
+                                                        Simpan
+                                                    </button>
+                                                    <button @click="cancelEditReply" class="text-xs text-gray-600 hover:text-gray-800">Batal</button>
+                                                </div>
+                                            </div>
+                                            <div v-else class="comment-content text-sm text-gray-700">{{ reply.content }}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -639,6 +672,10 @@ const commentEditText = ref('');
 const replyingToComment = ref(null);
 const replyText = ref('');
 
+// Reply editing refs
+const editingReply = ref(null);
+const replyEditText = ref('');
+
 const activeCommentId = ref(null);
 const commentListEl = ref(null);
 const commentElements = ref({});
@@ -653,9 +690,40 @@ const displayedComments = ref([]);
 // Timestamp refresh interval
 let timestampInterval = null;
 
-// Computed properties for comments
+// Function untuk membangun struktur hierarkis dari flat array
+const buildCommentTree = (flatComments) => {
+    const commentMap = new Map();
+    const topLevelComments = [];
+
+    // Pertama, buat map dari semua komentar
+    flatComments.forEach(comment => {
+        comment.replies = [];
+        commentMap.set(comment.id, comment);
+    });
+
+    // Kemudian, bangun struktur hierarkis
+    flatComments.forEach(comment => {
+        if (comment.parent_id && commentMap.has(comment.parent_id)) {
+            // Ini adalah reply, tambahkan ke parent
+            const parent = commentMap.get(comment.parent_id);
+            parent.replies.push(comment);
+        } else {
+            // Ini adalah komentar utama
+            topLevelComments.push(comment);
+        }
+    });
+
+    return topLevelComments;
+};
+
+// Computed properties untuk komentar hierarkis
+const hierarchicalComments = computed(() => {
+    return buildCommentTree([...comments.value]);
+});
+
+// Computed properties for comments (updated to use hierarchical structure)
 const sortedComments = computed(() => {
-    return [...comments.value].sort((a, b) => a.page_number - b.page_number || a.id - b.id);
+    return hierarchicalComments.value.sort((a, b) => a.page_number - b.page_number || a.id - b.id);
 });
 
 // Pagination computed properties
@@ -851,7 +919,30 @@ const formatFullDateTime = (timestamp) => {
     return date.toLocaleDateString('id-ID', options);
 };
 
-// Filter function
+// Function untuk menghitung total komentar termasuk replies
+const countAllComments = (commentsArray, status = null) => {
+    let count = 0;
+
+    commentsArray.forEach(comment => {
+        // Hitung komentar utama
+        if (!status || comment.status === status) {
+            count++;
+        }
+
+        // Hitung replies
+        if (comment.replies && comment.replies.length > 0) {
+            comment.replies.forEach(reply => {
+                if (!status || reply.status === status) {
+                    count++;
+                }
+            });
+        }
+    });
+
+    return count;
+};
+
+// Filter function - Updated untuk menyertakan replies dalam filtering
 const applyFilter = (filterType) => {
     commentFilter.value = filterType;
     currentPaginationPage.value = 1;
@@ -859,7 +950,26 @@ const applyFilter = (filterType) => {
     if (filterType === 'all') {
         displayedComments.value = sortedComments.value;
     } else {
-        displayedComments.value = sortedComments.value.filter(c => c.status === filterType);
+        // Filter komentar utama dan replies berdasarkan status
+        displayedComments.value = sortedComments.value.filter(comment => {
+            // Cek apakah komentar utama sesuai filter
+            const commentMatches = comment.status === filterType;
+
+            // Cek apakah ada replies yang sesuai filter
+            const hasMatchingReplies = comment.replies && comment.replies.some(reply => reply.status === filterType);
+
+            // Tampilkan jika komentar utama sesuai atau ada replies yang sesuai
+            return commentMatches || hasMatchingReplies;
+        }).map(comment => {
+            // Jika filtering bukan 'all', filter replies juga
+            if (filterType !== 'all') {
+                return {
+                    ...comment,
+                    replies: comment.replies ? comment.replies.filter(reply => reply.status === filterType) : []
+                };
+            }
+            return comment;
+        });
     }
 };
 
@@ -1053,7 +1163,10 @@ const saveComment = async () => {
         const response = await axios.post(props.apiStoreUrl, payload);
         let newCommentFromServer = response.data;
         newCommentFromServer.position = parsePosition(newCommentFromServer.position);
+
+        // Tambahkan komentar baru ke array comments (bukan ke hierarchical structure)
         comments.value.push(newCommentFromServer);
+
         cancelComment();
     } catch (error) {
         console.error("Gagal menyimpan komentar:", error);
@@ -1067,6 +1180,9 @@ const toggleCommentStatus = async (comment) => {
         const url = props.apiStatusUrlTemplate.replace('COMMENT_ID', comment.id);
         await axios.patch(url, { status: newStatus });
         comment.status = newStatus;
+
+        // Force reactivity update
+        comments.value = [...comments.value];
     } catch (error) {
         console.error("Gagal mengubah status:", error);
         alert('Terjadi kesalahan saat mengubah status.');
@@ -1106,10 +1222,43 @@ const saveEdit = async (comment) => {
         comment.content = response.data.content;
         comment.updated_at = response.data.updated_at;
 
+        // Force reactivity update
+        comments.value = [...comments.value];
+
         cancelEdit();
     } catch (error) {
         console.error("Gagal mengupdate komentar:", error);
         alert('Gagal mengupdate komentar.');
+    }
+};
+
+// Reply editing functions
+const startEditReply = (reply) => {
+    editingReply.value = reply;
+    replyEditText.value = reply.content;
+};
+
+const cancelEditReply = () => {
+    editingReply.value = null;
+    replyEditText.value = '';
+};
+
+const saveEditReply = async (parentComment, reply) => {
+    if (!replyEditText.value.trim()) return;
+    try {
+        const url = props.apiUpdateUrlTemplate.replace('COMMENT_ID', reply.id);
+        const response = await axios.put(url, { content: replyEditText.value });
+
+        reply.content = response.data.content;
+        reply.updated_at = response.data.updated_at;
+
+        // Force reactivity update
+        comments.value = [...comments.value];
+
+        cancelEditReply();
+    } catch (error) {
+        console.error("Gagal mengupdate balasan:", error);
+        alert('Gagal mengupdate balasan.');
     }
 };
 
@@ -1130,19 +1279,8 @@ const parsePosition = (positionData) => {
     }
 };
 
-const removeCommentFromTree = (commentsArray, commentId) => {
-    const filtered = commentsArray.filter(c => c.id !== commentId);
-
-    if (filtered.length === commentsArray.length) {
-        return commentsArray.map(parentComment => {
-            if (parentComment.replies && parentComment.replies.length > 0) {
-                parentComment.replies = removeCommentFromTree(parentComment.replies, commentId);
-            }
-            return parentComment;
-        });
-    }
-
-    return filtered;
+const removeCommentFromArray = (commentsArray, commentId) => {
+    return commentsArray.filter(c => c.id !== commentId);
 };
 
 const deleteComment = async (commentToDelete) => {
@@ -1150,10 +1288,27 @@ const deleteComment = async (commentToDelete) => {
         try {
             const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
             await axios.delete(url);
-            comments.value = removeCommentFromTree(comments.value, commentToDelete.id);
+
+            // Hapus dari array utama comments
+            comments.value = removeCommentFromArray(comments.value, commentToDelete.id);
         } catch (error) {
             console.error("Gagal menghapus komentar:", error);
             alert('Gagal menghapus komentar.');
+        }
+    }
+};
+
+const deleteReply = async (parentComment, reply) => {
+    if (confirm('Anda yakin ingin menghapus balasan ini?')) {
+        try {
+            const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', reply.id);
+            await axios.delete(url);
+
+            // Hapus reply dari array utama comments
+            comments.value = removeCommentFromArray(comments.value, reply.id);
+        } catch (error) {
+            console.error("Gagal menghapus balasan:", error);
+            alert('Gagal menghapus balasan.');
         }
     }
 };
@@ -1181,22 +1336,13 @@ const submitReply = async (parentComment) => {
     };
 
     console.log('Sending reply payload:', payload);
-    console.log('API Store URL:', props.apiStoreUrl);
 
     try {
         const response = await axios.post(props.apiStoreUrl, payload);
         console.log('Reply response:', response.data);
 
-        // Pastikan parent comment memiliki array replies
-        if (!parentComment.replies) {
-            parentComment.replies = [];
-        }
-
-        // Tambahkan reply baru ke parent comment
-        parentComment.replies.push(response.data);
-
-        // Update reactive state untuk memicu re-render
-        comments.value = [...comments.value];
+        // Tambahkan reply ke array utama comments (akan diatur ulang oleh buildCommentTree)
+        comments.value.push(response.data);
 
         // Reset form
         cancelReply();
@@ -1207,7 +1353,6 @@ const submitReply = async (parentComment) => {
         console.error("Error response:", error.response?.data);
         console.error("Error status:", error.response?.status);
 
-        // Tampilkan pesan error yang lebih spesifik
         if (error.response?.data?.message) {
             alert(`Gagal mengirim balasan: ${error.response.data.message}`);
         } else {
@@ -1216,8 +1361,13 @@ const submitReply = async (parentComment) => {
     }
 };
 
+// Updated commentsOnCurrentPage untuk hanya menampilkan komentar utama di PDF annotation layer
 const commentsOnCurrentPage = computed(() => {
-    return comments.value.filter(c => {
+    return hierarchicalComments.value.filter(c => {
+        // Hanya komentar utama
+        if (c.parent_id !== null) return false;
+
+        // Filter halaman aktif dan tipe
         if (c.type === null || c.page_number !== currentPageNum.value) {
             return false;
         }
@@ -1239,4 +1389,5 @@ const commentsOnCurrentPage = computed(() => {
         return false;
     });
 });
+
 </script>
