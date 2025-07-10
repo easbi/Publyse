@@ -223,14 +223,13 @@ class PublicationController extends Controller
         }
 
         // Ambil semua komentar dari dokumen ini, beserta informasi user yang membuatnya
-        $comments = $document->comments()->with('user')->get();
+        $comments = $document->comments()->whereNull('parent_id')->with('user')->get();
 
         // Siapkan data statistik untuk ditampilkan di view
         $totalComments = $comments->count();
         $doneComments = $comments->where('status', 'done')->count();
         $openComments = $totalComments - $doneComments;
         $completionPercentage = ($totalComments > 0) ? round(($doneComments / $totalComments) * 100) : 0;
-
         $stats = [
             'total' => $totalComments,
             'done' => $doneComments,

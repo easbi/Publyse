@@ -29,10 +29,21 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         /**
+         * Gate untuk mengecek apakah user adalah admin
+         */
+        Gate::define('admin-access', function (User $user) {
+            return $user->id === 1; // atau bisa disesuaikan dengan kolom role
+        });
+
+
+        /**
          * Gate untuk menentukan siapa yang boleh mengelola sebuah publikasi (misal: menugaskan reviewer).
          * Hanya user yang membuat publikasi yang diizinkan.
          */
         Gate::define('manage-publication', function (User $user, Publication $publication) {
+            if ($user->id === 1) {
+                return true;
+            }
             return $user->id === $publication->creator_id;
         });
 
@@ -41,6 +52,10 @@ class AuthServiceProvider extends ServiceProvider
          * Diizinkan jika user adalah pembuat publikasi ATAU pemilik komentar itu sendiri.
          */
         Gate::define('resolve-comment', function (User $user, Comment $comment) {
+            if ($user->id === 1) {
+                return true;
+            }
+
             // Cek jika user adalah pembuat komentar
             if ($user->id === $comment->user_id) {
                 return true;
@@ -55,6 +70,10 @@ class AuthServiceProvider extends ServiceProvider
          * Diizinkan jika user adalah pembuatnya ATAU merupakan salah satu reviewer yang ditugaskan.
          */
         Gate::define('view-publication', function (User $user, Publication $publication) {
+            if ($user->id === 1) {
+                return true;
+            }
+
             // Cek jika user adalah pembuatnya
             if ($user->id === $publication->creator_id) {
                 return true;
@@ -66,11 +85,17 @@ class AuthServiceProvider extends ServiceProvider
 
         // Gate untuk mengizinkan update komentar
         Gate::define('update-comment', function (User $user, Comment $comment) {
+            if ($user->id === 1) {
+                return true;
+            }
             return $user->id === $comment->user_id;
         });
 
         // Gate untuk mengizinkan hapus komentar
         Gate::define('delete-comment', function (User $user, Comment $comment) {
+            if ($user->id === 1) {
+                return true;
+            }
             return $user->id === $comment->user_id;
         });
     }
