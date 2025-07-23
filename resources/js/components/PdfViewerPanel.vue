@@ -348,15 +348,7 @@ const handleCommentClick = (comment) => {
 
 // Watch untuk debugging perubahan props
 watch(() => props.commentsOnCurrentPage, (newComments, oldComments) => {
-    console.log('PdfViewerPanel: commentsOnCurrentPage changed');
-    console.log('Old comments count:', oldComments?.length || 0);
-    console.log('New comments count:', newComments?.length || 0);
-    console.log('New comments:', newComments?.map(c => ({
-        id: c.id,
-        type: c.type,
-        page_number: c.page_number,
-        hasPosition: !!c.position
-    })));
+
 }, { deep: true, immediate: true });
 const parsePosition = (positionData) => {
     if (!positionData) return null;

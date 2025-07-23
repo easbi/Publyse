@@ -71,9 +71,9 @@
                                             @change="handleToggleStatus(comment)"
                                             @click.stop
                                             class="form-checkbox h-4 w-4 rounded text-green-600 transition duration-150 ease-in-out"
-                                            :disabled="!(currentUser.id === creatorId || currentUser.id === comment.user_id)"
-                                            :title="(currentUser.id === creatorId || currentUser.id === comment.user_id) ? 'Tandai sebagai selesai' : 'Hanya pemilik publikasi/komentar yang bisa mengubah status'"
-                                            :class="{ 'cursor-not-allowed': !(currentUser.id === creatorId || currentUser.id === comment.user_id) }"
+                                            :disabled="!canToggleStatus(comment)"
+                                            :title="canToggleStatus(comment) ? 'Tandai sebagai selesai' : 'Hanya pemilik publikasi/komentar yang bisa mengubah status'"
+                                            :class="{ 'cursor-not-allowed': !canToggleStatus(comment) }"
                                         >
                                     </div>
                                 </div>
@@ -512,7 +512,24 @@ const formatFullDateTime = (timestamp) => {
     return date.toLocaleDateString('id-ID', options);
 };
 
-// Event handlers
+// Computed property untuk check permission
+const canToggleStatus = computed(() => {
+    return (comment) => {
+        const currentUserId = String(props.currentUser?.id || '');
+        const creatorIdStr = String(props.creatorId || '');
+        const commentUserId = String(comment?.user_id || '');
+
+        // Fallback: jika creatorId tidak ada, anggap currentUser adalah owner
+        const isCreator = creatorIdStr !== '' ?
+            (currentUserId === creatorIdStr) :
+            true; // Fallback logic
+
+        const isCommentOwner = currentUserId === commentUserId;
+        const canToggle = isCreator || isCommentOwner;
+
+        return canToggle;
+    };
+});
 const applyFilter = (filterType) => {
     emit('filter-changed', filterType);
 };
@@ -538,6 +555,10 @@ const handleGoToComment = (comment) => {
 };
 
 const handleToggleStatus = (comment) => {
+    if (!canToggleStatus.value(comment)) {
+        return;
+    }
+
     emit('toggle-comment-status', comment);
 };
 

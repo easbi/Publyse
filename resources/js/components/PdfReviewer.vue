@@ -39,7 +39,7 @@
         <CommentManagement
             :comments="hierarchicalComments"
             :current-user="currentUser"
-            :creator-id="creatorId"
+            :creator-id="actualCreatorId"
             :active-comment-id="activeCommentId"
             :comment-filter="commentFilter"
             :displayed-comments="displayedComments"
@@ -228,6 +228,39 @@ const commentsPerPage = ref(5);
 // Comments state
 const displayedComments = ref([]);
 
+// Computed property untuk mendapatkan creator ID dari berbagai sumber
+const actualCreatorId = computed(() => {
+    // Prioritas: props.creatorId -> document fields -> extract dari comments
+    let creatorId = props.creatorId ||
+                   props.document?.user_id ||
+                   props.document?.created_by ||
+                   props.document?.owner_id ||
+                   props.document?.owner?.id ||
+                   props.document?.creator_id ||
+                   props.document?.publisher_id;
+
+    // Jika tidak ada, coba cari dari field lain yang mungkin
+    if (!creatorId && props.document) {
+        // Cari field yang mengandung 'user' atau 'creator' atau 'owner'
+        const documentKeys = Object.keys(props.document);
+        const possibleKeys = documentKeys.filter(key =>
+            key.toLowerCase().includes('user') ||
+            key.toLowerCase().includes('creator') ||
+            key.toLowerCase().includes('owner') ||
+            key.toLowerCase().includes('publisher')
+        );
+
+        for (const key of possibleKeys) {
+            const value = props.document[key];
+            if (value && (typeof value === 'number' || typeof value === 'string')) {
+                creatorId = value;
+                break;
+            }
+        }
+    }
+    return creatorId;
+});
+
 // Timestamp refresh interval
 let timestampInterval = null;
 
@@ -250,12 +283,6 @@ const buildCommentTree = (flatComments) => {
         }
     });
 
-    console.log('Comment tree rebuilt:', {
-        totalComments: flatComments.length,
-        topLevelComments: topLevelComments.length,
-        commentsWithReplies: topLevelComments.filter(c => c.replies.length > 0).length
-    });
-
     return topLevelComments;
 };
 
@@ -267,6 +294,25 @@ const hierarchicalComments = computed(() => {
 const sortedComments = computed(() => {
     return hierarchicalComments.value.sort((a, b) => a.page_number - b.page_number || a.id - b.id);
 });
+
+// Fungsi untuk update data tanpa mengubah pagination
+const updateDisplayedComments = () => {
+    const filterType = commentFilter.value;
+
+    if (filterType === 'all') {
+        displayedComments.value = sortedComments.value;
+    } else {
+        // Filter hanya berdasarkan status komentar parent/utama
+        // Semua replies mengikuti parent mereka
+        displayedComments.value = sortedComments.value
+            .filter(comment => comment.status === filterType)
+            .map(comment => ({
+                ...comment,
+                // Tampilkan SEMUA replies dari parent yang lolos filter
+                replies: comment.replies || []
+            }));
+    }
+};
 
 const commentsOnCurrentPage = computed(() => {
     const currentPageComments = hierarchicalComments.value.filter(c => {
@@ -288,8 +334,6 @@ const commentsOnCurrentPage = computed(() => {
         }
         return false;
     });
-
-    console.log(`Comments on page ${currentPageNum.value}:`, currentPageComments.length);
     return currentPageComments;
 });
 
@@ -440,24 +484,11 @@ const endSelection = () => {
     tempSelectionRect.value = null;
 };
 
-// Comment functions
+// Comment functions - FIXED TO PRESERVE PAGINATION
 const applyFilter = (filterType) => {
     commentFilter.value = filterType;
-    currentPaginationPage.value = 1;
-
-    if (filterType === 'all') {
-        displayedComments.value = sortedComments.value;
-    } else {
-        // Filter hanya berdasarkan status komentar parent/utama
-        // Semua replies mengikuti parent mereka
-        displayedComments.value = sortedComments.value
-            .filter(comment => comment.status === filterType)
-            .map(comment => ({
-                ...comment,
-                // Tampilkan SEMUA replies dari parent yang lolos filter
-                replies: comment.replies || []
-            }));
-    }
+    currentPaginationPage.value = 1; // Reset pagination hanya saat filter berubah
+    updateDisplayedComments();
 };
 
 const goToPage = (page) => {
@@ -492,53 +523,29 @@ const saveComment = async () => {
         payload.position = JSON.stringify(payload.position);
     }
 
-    console.log('Saving comment payload:', payload);
-
     try {
         const response = await axios.post(props.apiStoreUrl, payload);
         let newCommentFromServer = response.data;
 
-        console.log('Raw comment from server:', newCommentFromServer);
-
         // Pastikan komentar memiliki semua field yang diperlukan
         newCommentFromServer = {
             ...newCommentFromServer,
-            replies: [], // Pastikan ada array replies
-            parent_id: null, // Pastikan parent_id null untuk komentar utama
-            status: newCommentFromServer.status || 'open' // Default status
+            replies: [],
+            parent_id: null,
+            status: newCommentFromServer.status || 'open'
         };
 
         // Parse position untuk memastikan format yang benar
         newCommentFromServer.position = parsePosition(newCommentFromServer.position);
 
-        console.log('Processed comment:', newCommentFromServer);
-        console.log('Comment type:', newCommentFromServer.type);
-        console.log('Comment position:', newCommentFromServer.position);
-        console.log('Comment page:', newCommentFromServer.page_number);
-        console.log('Current page:', currentPageNum.value);
-
         // Tambahkan ke array comments original
-        const oldLength = comments.value.length;
         comments.value.push(newCommentFromServer);
 
-        console.log('Comments array length before:', oldLength);
-        console.log('Comments array length after:', comments.value.length);
-
-        // Force reactivity update dengan beberapa cara
+        // Force reactivity update
         comments.value = [...comments.value];
 
-        // Tunggu Vue update cycle
-        await nextTick();
-
-        console.log('After nextTick - Hierarchical comments:', hierarchicalComments.value.length);
-        console.log('After nextTick - Comments on current page:', commentsOnCurrentPage.value.length);
-
-        // Re-apply filter untuk memperbarui displayedComments
-        applyFilter(commentFilter.value);
-
-        // Double check setelah filter
-        await nextTick();
-        console.log('After filter - Comments on current page:', commentsOnCurrentPage.value.length);
+        // Update displayed comments tanpa reset pagination
+        updateDisplayedComments();
 
         cancelComment();
     } catch (error) {
@@ -554,6 +561,9 @@ const toggleCommentStatus = async (comment) => {
         await axios.patch(url, { status: newStatus });
         comment.status = newStatus;
         comments.value = [...comments.value];
+
+        // Update displayed comments tanpa reset pagination
+        updateDisplayedComments();
     } catch (error) {
         console.error("Gagal mengubah status:", error);
         alert('Terjadi kesalahan saat mengubah status.');
@@ -572,28 +582,24 @@ const cancelEdit = () => {
 
 const saveEdit = async (comment, newContent) => {
     if (!newContent || !newContent.trim()) return;
-    console.log('Saving edit for comment:', comment.id, 'new content:', newContent);
     try {
         const url = props.apiUpdateUrlTemplate.replace('COMMENT_ID', comment.id);
         const response = await axios.put(url, { content: newContent });
-        console.log('API response:', response.data);
 
         // Update di data original comments
         const originalComment = comments.value.find(c => c.id === comment.id);
         if (originalComment) {
             originalComment.content = response.data.content;
             originalComment.updated_at = response.data.updated_at;
-            console.log('Updated original comment:', originalComment);
         }
 
         // Force reactivity update untuk data original
         comments.value = [...comments.value];
 
-        // Re-apply filter untuk memperbarui displayedComments
-        applyFilter(commentFilter.value);
+        // Update displayed comments tanpa reset pagination
+        updateDisplayedComments();
 
         cancelEdit();
-        console.log('Edit saved successfully');
     } catch (error) {
         console.error("Gagal mengupdate komentar:", error);
         alert('Gagal mengupdate komentar.');
@@ -612,11 +618,9 @@ const cancelEditReply = () => {
 
 const saveEditReply = async (parentComment, reply, newContent) => {
     if (!newContent || !newContent.trim()) return;
-    console.log('Saving edit reply for:', reply.id, 'new content:', newContent);
     try {
         const url = props.apiUpdateUrlTemplate.replace('COMMENT_ID', reply.id);
         const response = await axios.put(url, { content: newContent });
-        console.log('API response:', response.data);
 
         // Update di data original comments - cari reply yang tepat
         const originalParent = comments.value.find(c => c.id === parentComment.id);
@@ -625,18 +629,16 @@ const saveEditReply = async (parentComment, reply, newContent) => {
             if (originalReply) {
                 originalReply.content = response.data.content;
                 originalReply.updated_at = response.data.updated_at;
-                console.log('Updated original reply:', originalReply);
             }
         }
 
         // Force reactivity update untuk data original
         comments.value = [...comments.value];
 
-        // Re-apply filter untuk memperbarui displayedComments
-        applyFilter(commentFilter.value);
+        // Update displayed comments tanpa reset pagination
+        updateDisplayedComments();
 
         cancelEditReply();
-        console.log('Reply edit saved successfully');
     } catch (error) {
         console.error("Gagal mengupdate balasan:", error);
         alert('Gagal mengupdate balasan.');
@@ -669,6 +671,9 @@ const deleteComment = async (commentToDelete) => {
             const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
             await axios.delete(url);
             comments.value = removeCommentFromArray(comments.value, commentToDelete.id);
+
+            // Update displayed comments tanpa reset pagination
+            updateDisplayedComments();
         } catch (error) {
             console.error("Gagal menghapus komentar:", error);
             alert('Gagal menghapus komentar.');
@@ -682,6 +687,9 @@ const deleteReply = async (parentComment, reply) => {
             const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', reply.id);
             await axios.delete(url);
             comments.value = removeCommentFromArray(comments.value, reply.id);
+
+            // Update displayed comments tanpa reset pagination
+            updateDisplayedComments();
         } catch (error) {
             console.error("Gagal menghapus balasan:", error);
             alert('Gagal menghapus balasan.');
@@ -691,12 +699,12 @@ const deleteReply = async (parentComment, reply) => {
 
 const startReply = (comment) => {
     replyingToComment.value = comment;
-    replyText.value = ''; // Reset parent state juga
+    replyText.value = '';
 };
 
 const cancelReply = () => {
     replyingToComment.value = null;
-    replyText.value = ''; // Reset parent state
+    replyText.value = '';
 };
 
 const submitReply = async (parentComment, newReplyText) => {
@@ -711,26 +719,19 @@ const submitReply = async (parentComment, newReplyText) => {
         parent_id: parentComment.id
     };
 
-    console.log('Sending reply payload:', payload);
-
     try {
         const response = await axios.post(props.apiStoreUrl, payload);
-        console.log('Reply response:', response.data);
 
-        // Tambahkan reply ke array utama comments (akan diatur ulang oleh buildCommentTree)
+        // Tambahkan reply ke array utama comments
         comments.value.push(response.data);
 
-        // Re-apply filter untuk memperbarui displayedComments
-        applyFilter(commentFilter.value);
+        // Update displayed comments tanpa reset pagination
+        updateDisplayedComments();
 
         // Reset form
         cancelReply();
-
-        console.log('Reply berhasil ditambahkan');
     } catch (error) {
         console.error("Gagal mengirim balasan:", error);
-        console.error("Error response:", error.response?.data);
-        console.error("Error status:", error.response?.status);
 
         if (error.response?.data?.message) {
             alert(`Gagal mengirim balasan: ${error.response.data.message}`);
@@ -778,9 +779,9 @@ const renderPage = async (num) => {
     }
 };
 
-// Watch for comments changes
-watch(sortedComments, (newSortedList) => {
-    applyFilter(commentFilter.value);
+// Watch for comments changes - update display tanpa reset pagination
+watch(sortedComments, () => {
+    updateDisplayedComments();
 }, { immediate: true });
 
 watch(showCommentModal, (isShowing) => {
@@ -800,7 +801,7 @@ onUnmounted(() => {
 });
 
 onMounted(async () => {
-    console.log("Component mounted");
+    console.log("Component mounted - Pagination preserved version");
 
     const csrfAxios = axios.create();
     try {
@@ -824,4 +825,4 @@ onMounted(async () => {
 
     setupKeyboardShortcuts();
 });
-</script>377
+</script>
