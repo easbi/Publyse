@@ -214,31 +214,76 @@ class PublicationController extends Controller
         // Otorisasi: Hanya yang boleh melihat publikasi yang bisa mengakses ringkasan
         Gate::authorize('view-publication', $publication);
 
-        // Ambil dokumen terbaru (kita asumsikan ringkasan berdasarkan draf terakhir)
-        $document = $publication->documents()->latest()->first();
+        // Ambil SEMUA dokumen dari publikasi ini (semua versi)
+        $documents = $publication->documents()->orderBy('version', 'desc')->get();
 
-        // Jika tidak ada dokumen, alihkan kembali dengan pesan
-        if (!$document) {
+        // Jika tidak ada dokumen sama sekali, alihkan kembali dengan pesan
+        if ($documents->isEmpty()) {
             return redirect()->back()->with('error', 'Publikasi ini tidak memiliki dokumen untuk diringkas.');
         }
 
-        // Ambil semua komentar dari dokumen ini, beserta informasi user yang membuatnya
-        $comments = $document->comments()->whereNull('parent_id')->with('user')->get();
+        // Ambil semua komentar dari SEMUA dokumen/versi
+        $allComments = collect();
+        $statsByVersion = collect();
 
-        // Siapkan data statistik untuk ditampilkan di view
-        $totalComments = $comments->count();
-        $doneComments = $comments->where('status', 'done')->count();
-        $openComments = $totalComments - $doneComments;
-        $completionPercentage = ($totalComments > 0) ? round(($doneComments / $totalComments) * 100) : 0;
-        $stats = [
-            'total' => $totalComments,
-            'done' => $doneComments,
-            'open' => $openComments,
-            'percentage' => $completionPercentage,
+        foreach ($documents as $document) {
+            // Ambil komentar untuk dokumen ini (hanya parent comments, bukan replies)
+            $comments = $document->comments()
+                ->whereNull('parent_id')
+                ->with(['user', 'replies.user']) // Include replies juga
+                ->get();
+
+            // Tambahkan informasi versi ke setiap komentar
+            $comments->each(function ($comment) use ($document) {
+                $comment->document_version = $document->version;
+                $comment->document_filename = $document->original_filename;
+            });
+
+            // Hitung statistik per versi
+            $totalComments = $comments->count();
+            $doneComments = $comments->where('status', 'done')->count();
+            $openComments = $totalComments - $doneComments;
+            $completionPercentage = ($totalComments > 0) ? round(($doneComments / $totalComments) * 100) : 0;
+
+            $statsByVersion->put($document->version, [
+                'total' => $totalComments,
+                'done' => $doneComments,
+                'open' => $openComments,
+                'percentage' => $completionPercentage,
+                'document' => $document
+            ]);
+
+            // Tambahkan ke koleksi semua komentar
+            $allComments = $allComments->merge($comments);
+        }
+
+        // Hitung statistik keseluruhan (semua versi)
+        $totalCommentsAll = $allComments->count();
+        $doneCommentsAll = $allComments->where('status', 'done')->count();
+        $openCommentsAll = $totalCommentsAll - $doneCommentsAll;
+        $completionPercentageAll = ($totalCommentsAll > 0) ? round(($doneCommentsAll / $totalCommentsAll) * 100) : 0;
+
+        $overallStats = [
+            'total' => $totalCommentsAll,
+            'done' => $doneCommentsAll,
+            'open' => $openCommentsAll,
+            'percentage' => $completionPercentageAll,
         ];
 
-        // Kirim semua data yang diperlukan ke view
-        return view('publications.summary', compact('publication', 'comments', 'stats'));
+        // Statistik tambahan
+        $additionalStats = [
+            'total_versions' => $documents->count(),
+            'latest_version' => $documents->first()->version,
+        ];
+
+        // Kirim data ke view yang sudah dimodifikasi
+        return view('publications.summary', compact(
+            'publication',
+            'allComments',
+            'statsByVersion',
+            'overallStats',
+            'additionalStats'
+        ));
     }
 }
 

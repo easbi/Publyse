@@ -11,51 +11,100 @@
     </div>
 
     <!-- Kartu Statistik -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow">
             <h4 class="text-sm font-medium text-gray-500">Total Pemeriksaan</h4>
-            <p class="text-3xl font-bold mt-1">{{ $stats['total'] }}</p>
+            <p class="text-3xl font-bold mt-1">{{ $overallStats['total'] }}</p>
+            <p class="text-xs text-gray-400 mt-1">Semua versi</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow">
             <h4 class="text-sm font-medium text-gray-500">Pemeriksaan Belum Ditindaklanjuti</h4>
-            <p class="text-3xl font-bold mt-1 text-red-500">{{ $stats['open'] }}</p>
+            <p class="text-3xl font-bold mt-1 text-red-500">{{ $overallStats['open'] }}</p>
         </div>
         <div class="bg-white p-6 rounded-lg shadow">
             <h4 class="text-sm font-medium text-gray-500">Pemeriksaan Selesai Tindaklanjut</h4>
-            <p class="text-3xl font-bold mt-1 text-green-500">{{ $stats['done'] }}</p>
+            <p class="text-3xl font-bold mt-1 text-green-500">{{ $overallStats['done'] }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h4 class="text-sm font-medium text-gray-500">Total Versi Dokumen</h4>
+            <p class="text-3xl font-bold mt-1 text-blue-500">{{ $additionalStats['total_versions'] }}</p>
         </div>
     </div>
 
     <!-- Progress Bar -->
     <div class="bg-white p-6 rounded-lg shadow mb-8">
-        <h4 class="text-md font-semibold mb-3">Progres Penyelesaian</h4>
+        <h4 class="text-md font-semibold mb-3">Progres Penyelesaian (Semua Versi)</h4>
         <div class="w-full bg-gray-200 rounded-full h-4">
-            <div class="bg-blue-600 h-4 rounded-full text-center text-white text-xs leading-4" style="width: {{ $stats['percentage'] }}%">
-                {{ $stats['percentage'] }}%
+            <div class="bg-blue-600 h-4 rounded-full text-center text-white text-xs leading-4" style="width: {{ $overallStats['percentage'] }}%">
+                {{ $overallStats['percentage'] }}%
             </div>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">
+            {{ $overallStats['done'] }} dari {{ $overallStats['total'] }} komentar telah diselesaikan
+        </p>
+    </div>
+
+    <!-- Statistik per Versi -->
+    <div class="bg-white p-6 rounded-lg shadow mb-8">
+        <h4 class="text-md font-semibold mb-4">Statistik per Versi</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach($statsByVersion as $version => $stats)
+            <div class="border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Versi {{ $version }}
+                    </span>
+                    <span class="text-sm font-medium">{{ $stats['percentage'] }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div class="bg-green-500 h-2 rounded-full" style="width: {{ $stats['percentage'] }}%"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-600">
+                    <span>Total: {{ $stats['total'] }}</span>
+                    <span>Selesai: {{ $stats['done'] }}</span>
+                    <span>Terbuka: {{ $stats['open'] }}</span>
+                </div>
+            </div>
+            @endforeach
         </div>
     </div>
 
     <!-- Tabel Daftar Komentar -->
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
         <div class="p-6 bg-white border-b border-gray-200">
-            <h3 class="text-lg font-semibold mb-4">Detail Pemeriksaan</h3>
+            <h3 class="text-lg font-semibold mb-4">Detail Pemeriksaan (Semua Versi)</h3>
             <div class="overflow-x-auto">
                 <table id="commentsTable" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Versi</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hal.</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pemeriksa</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Komentar</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse ($comments as $comment)
+                        @forelse ($allComments as $comment)
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">{{ $comment->page_number }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                        v{{ $comment->document_version }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">{{ $comment->page_number ?: '-' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">{{ $comment->user->fullname }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-800">{{ $comment->content }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-800">
+                                    <div class="max-w-xs truncate" title="{{ $comment->content }}">
+                                        {{ Str::limit($comment->content, 100) }}
+                                    </div>
+                                    @if($comment->replies && $comment->replies->count() > 0)
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {{ $comment->replies->count() }} balasan
+                                    </div>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($comment->status == 'done')
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -67,11 +116,14 @@
                                         </span>
                                     @endif
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $comment->created_at->format('d/m/Y H:i') }}
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
-                                    Belum ada komentar untuk dokumen ini.
+                                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    Belum ada komentar untuk publikasi ini.
                                 </td>
                             </tr>
                         @endforelse
@@ -175,6 +227,32 @@ table.dataTable tbody td {
 .dataTables_wrapper .dataTables_paginate {
     color: #374151;
 }
+
+/* Custom styling for version badges */
+.version-badge {
+    background-color: #dbeafe;
+    color: #1e40af;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Hover effect for table rows */
+tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Responsive table scroll */
+@media (max-width: 768px) {
+    .overflow-x-auto {
+        overflow-x: scroll;
+    }
+
+    table {
+        min-width: 800px;
+    }
+}
 </style>
 
 <!-- jQuery (pastikan tidak ada conflict dengan yang sudah ada) -->
@@ -205,9 +283,11 @@ $(document).ready(function() {
         "lengthChange": true,
         "pageLength": 10,
         "lengthMenu": [5, 10, 25, 50, 100],
-        "order": [[ 0, "asc" ]],
+        "order": [[ 0, "desc" ], [ 1, "asc" ]], // Sort by version desc, then page asc
         "columnDefs": [
-            { "orderable": false, "targets": 3 }
+            { "orderable": true, "targets": [0, 1, 2, 4, 5] }, // Version, Page, Reviewer, Status, Date sortable
+            { "orderable": false, "targets": [3] }, // Comment content not sortable
+            { "type": "num", "targets": [0, 1] } // Version and page as numbers
         ],
         "language": {
             "search": "Cari:",
