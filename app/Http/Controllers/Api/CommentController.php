@@ -19,6 +19,9 @@ class CommentController extends Controller
             'document_id' => 'required|exists:documents,id',
             'content' => 'required|string',
             'parent_id' => 'nullable|exists:comments,id',
+            'created_at_scale' => 'nullable|numeric|between:0.1,10.0',
+            'page_dimensions' => 'nullable|array',
+            'original_position' => 'nullable|string',
         ]);
 
         // --- LOGIKA PEMERIKSAAN BATAS WAKTU ---
@@ -40,6 +43,11 @@ class CommentController extends Controller
             'status' => 'open',
             'content' => $validated['content'],
             'document_id' => $validated['document_id'],
+            'created_at_scale' => $validated['created_at_scale'] ?? 1.0,
+            'page_dimensions' => isset($validated['page_dimensions'])
+                ? json_encode($validated['page_dimensions'])
+                : null,
+            'original_position' => $validated['original_position'] ?? null,
         ];
 
         // Cek apakah ini sebuah balasan (reply)
@@ -53,6 +61,9 @@ class CommentController extends Controller
             $dataToCreate['page_number'] = $parentComment->page_number;
             $dataToCreate['type'] = $parentComment->type;
             $dataToCreate['position'] = $parentComment->position;
+            if (!isset($validated['created_at_scale']) && $parentComment->created_at_scale) {
+                $dataToCreate['created_at_scale'] = $parentComment->created_at_scale;
+            }
 
         } else {
             // Jika ini komentar utama, validasi atribut anotasi

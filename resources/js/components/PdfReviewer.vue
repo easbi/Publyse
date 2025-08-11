@@ -75,6 +75,22 @@
         <div v-if="showCommentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-lg shadow-xl p-6 w-[60rem] max-w-[90vw]">
                 <h3 class="text-lg font-semibold mb-4 text-gray-700">Komentar Baru</h3>
+
+                <!-- Info Scale saat membuat komentar -->
+                <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-sm text-blue-700">
+                            Komentar ini dibuat pada zoom <strong>{{ Math.round(scale * 100) }}%</strong> halaman {{ currentPageNum }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-blue-600 mt-1">
+                        Posisi akan tersimpan akurat untuk zoom level ini
+                    </p>
+                </div>
+
                 <textarea
                     v-model="newCommentData.content"
                     ref="commentTextarea"
@@ -84,8 +100,22 @@
                 </textarea>
                 <div class="mt-6 flex justify-end gap-4">
                     <button @click="cancelComment" class="px-6 py-3 bg-gray-300 rounded-md hover:bg-gray-400 text-sm">Batal</button>
-                    <button @click="saveComment" class="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">Simpan</button>
+                    <button @click="saveComment" :disabled="isSubmittingComment" class="px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm disabled:opacity-50">
+                        {{ isSubmittingComment ? 'Menyimpan...' : 'Simpan' }}
+                    </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification untuk Scale Changes -->
+        <div v-if="showScaleToast"
+             class="fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-300 transform z-50"
+             :class="showScaleToast ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ scaleToastMessage }}</span>
             </div>
         </div>
     </div>
@@ -178,6 +208,13 @@ const isLoading = ref(false);
 const canvasSize = ref({ width: 0, height: 0 });
 const pdfContainer = ref(null);
 
+// Scale toast notification
+const showScaleToast = ref(false);
+const scaleToastMessage = ref('');
+
+// Comment submission state
+const isSubmittingComment = ref(false);
+
 // Zoom configuration
 const minScale = ref(0.25);
 const maxScale = ref(5.0);
@@ -228,9 +265,73 @@ const commentsPerPage = ref(5);
 // Comments state
 const displayedComments = ref([]);
 
+// ============= SCALE-AWARE FUNCTIONS =============
+
+// Fungsi untuk normalisasi posisi ke scale 1.0
+const normalizePosition = (position, currentScale) => {
+    if (!position || !currentScale || currentScale === 0) return position;
+
+    return {
+        x: position.x / currentScale,
+        y: position.y / currentScale,
+        width: position.width ? position.width / currentScale : undefined,
+        height: position.height ? position.height / currentScale : undefined
+    };
+};
+
+// Fungsi untuk denormalisasi posisi ke scale tertentu
+const denormalizePosition = (normalizedPosition, targetScale) => {
+    if (!normalizedPosition || !targetScale) return normalizedPosition;
+
+    return {
+        x: normalizedPosition.x * targetScale,
+        y: normalizedPosition.y * targetScale,
+        width: normalizedPosition.width ? normalizedPosition.width * targetScale : undefined,
+        height: normalizedPosition.height ? normalizedPosition.height * targetScale : undefined
+    };
+};
+
+// Fungsi untuk menampilkan toast notification scale
+const showScaleToastMessage = (message, duration = 3000) => {
+    scaleToastMessage.value = message;
+    showScaleToast.value = true;
+    setTimeout(() => {
+        showScaleToast.value = false;
+    }, duration);
+};
+
+// Fungsi untuk scroll ke posisi komentar
+const scrollToComment = (comment) => {
+    if (!comment.position) return;
+
+    const position = parsePosition(comment.position);
+    if (!position) return;
+
+    // Hitung posisi scroll berdasarkan posisi komentar
+    const pdfContainer = document.getElementById('pdf-container');
+    const pdfContainerParent = pdfContainer?.parentElement;
+
+    if (pdfContainer && pdfContainerParent) {
+        // Hitung offset scroll untuk center komentar di viewport
+        const commentCenterX = position.x + (position.width || 0) / 2;
+        const commentCenterY = position.y + (position.height || 0) / 2;
+
+        const containerRect = pdfContainerParent.getBoundingClientRect();
+        const targetScrollLeft = commentCenterX - containerRect.width / 2;
+        const targetScrollTop = commentCenterY - containerRect.height / 2;
+
+        pdfContainerParent.scrollTo({
+            left: Math.max(0, targetScrollLeft),
+            top: Math.max(0, targetScrollTop),
+            behavior: 'smooth'
+        });
+    }
+};
+
+// ============= COMPUTED PROPERTIES =============
+
 // Computed property untuk mendapatkan creator ID dari berbagai sumber
 const actualCreatorId = computed(() => {
-    // Prioritas: props.creatorId -> document fields -> extract dari comments
     let creatorId = props.creatorId ||
                    props.document?.user_id ||
                    props.document?.created_by ||
@@ -239,9 +340,7 @@ const actualCreatorId = computed(() => {
                    props.document?.creator_id ||
                    props.document?.publisher_id;
 
-    // Jika tidak ada, coba cari dari field lain yang mungkin
     if (!creatorId && props.document) {
-        // Cari field yang mengandung 'user' atau 'creator' atau 'owner'
         const documentKeys = Object.keys(props.document);
         const possibleKeys = documentKeys.filter(key =>
             key.toLowerCase().includes('user') ||
@@ -260,9 +359,6 @@ const actualCreatorId = computed(() => {
     }
     return creatorId;
 });
-
-// Timestamp refresh interval
-let timestampInterval = null;
 
 // Function untuk membangun struktur hierarkis dari flat array
 const buildCommentTree = (flatComments) => {
@@ -295,33 +391,29 @@ const sortedComments = computed(() => {
     return hierarchicalComments.value.sort((a, b) => a.page_number - b.page_number || a.id - b.id);
 });
 
-// Fungsi untuk update data tanpa mengubah pagination
-const updateDisplayedComments = () => {
-    const filterType = commentFilter.value;
-
-    if (filterType === 'all') {
-        displayedComments.value = sortedComments.value;
-    } else {
-        // Filter hanya berdasarkan status komentar parent/utama
-        // Semua replies mengikuti parent mereka
-        displayedComments.value = sortedComments.value
-            .filter(comment => comment.status === filterType)
-            .map(comment => ({
-                ...comment,
-                // Tampilkan SEMUA replies dari parent yang lolos filter
-                replies: comment.replies || []
-            }));
-    }
-};
-
+// UPDATED: Computed property untuk komentar di halaman saat ini dengan scale adjustment
 const commentsOnCurrentPage = computed(() => {
     const currentPageComments = hierarchicalComments.value.filter(c => {
         if (c.parent_id !== null) return false;
         if (c.type === null || c.page_number !== currentPageNum.value) {
             return false;
         }
-        const position = parsePosition(c.position);
+
+        // Parse posisi dengan mempertimbangkan scale
+        let position = parsePosition(c.position);
         if (!position) return false;
+
+        // SCALE AWARENESS: Adjust posisi berdasarkan scale
+        if (c.created_at_scale && c.created_at_scale !== scale.value) {
+            // Normalisasi dulu ke scale 1.0, lalu denormalisasi ke scale saat ini
+            const normalizedPos = normalizePosition(position, c.created_at_scale);
+            position = denormalizePosition(normalizedPos, scale.value);
+
+            // Update posisi di objek komentar untuk rendering
+            c.adjusted_position = position;
+        } else {
+            c.adjusted_position = position;
+        }
 
         if (c.type === 'point') {
             return typeof position.x === 'number' && typeof position.y === 'number';
@@ -337,7 +429,27 @@ const commentsOnCurrentPage = computed(() => {
     return currentPageComments;
 });
 
-// Event handlers
+// Timestamp refresh interval
+let timestampInterval = null;
+
+// Fungsi untuk update data tanpa mengubah pagination
+const updateDisplayedComments = () => {
+    const filterType = commentFilter.value;
+
+    if (filterType === 'all') {
+        displayedComments.value = sortedComments.value;
+    } else {
+        displayedComments.value = sortedComments.value
+            .filter(comment => comment.status === filterType)
+            .map(comment => ({
+                ...comment,
+                replies: comment.replies || []
+            }));
+    }
+};
+
+// ============= EVENT HANDLERS =============
+
 const handlePageChanged = (pageNum) => {
     renderPage(pageNum);
 };
@@ -390,17 +502,63 @@ const handleWheel = (event) => {
     }
 };
 
+// UPDATED: handleGoToComment dengan auto-adjust scale
 const handleGoToComment = async (comment) => {
-    if (comment.page_number && comment.page_number !== currentPageNum.value) {
-        await renderPage(comment.page_number);
+    try {
+        console.log('Navigating to comment:', {
+            id: comment.id,
+            page: comment.page_number,
+            current_scale: scale.value,
+            comment_scale: comment.created_at_scale
+        });
+
+        // Pindah ke halaman yang tepat
+        if (comment.page_number && comment.page_number !== currentPageNum.value) {
+            await renderPage(comment.page_number);
+        }
+
+        // FITUR BARU: Auto-adjust ke scale yang sama dengan saat komentar dibuat
+        if (comment.created_at_scale && comment.created_at_scale !== scale.value) {
+            const oldScale = Math.round(scale.value * 100);
+            const newScale = Math.round(comment.created_at_scale * 100);
+
+            console.log(`Auto-adjusting scale from ${oldScale}% to ${newScale}% for accurate positioning`);
+
+            showScaleToastMessage(
+                `Zoom disesuaikan ke ${newScale}% (saat komentar dibuat)`
+            );
+
+            scale.value = comment.created_at_scale;
+            await renderPage(currentPageNum.value);
+
+            // Tunggu sebentar untuk render selesai
+            await nextTick();
+            setTimeout(() => {
+                highlightedCommentId.value = comment.id;
+                scrollToComment(comment);
+
+                setTimeout(() => {
+                    highlightedCommentId.value = null;
+                }, 2500); // Highlight lebih lama
+            }, 200);
+        } else {
+            // Jika scale sudah sama, langsung highlight
+            highlightedCommentId.value = comment.id;
+            scrollToComment(comment);
+
+            setTimeout(() => {
+                highlightedCommentId.value = null;
+            }, 1500);
+        }
+
+    } catch (error) {
+        console.error("Error navigating to comment:", error);
+        showScaleToastMessage("Error navigating to comment", 3000);
     }
-    highlightedCommentId.value = comment.id;
-    setTimeout(() => {
-        highlightedCommentId.value = null;
-    }, 1500);
 };
 
-// Zoom Functions
+// ============= ZOOM FUNCTIONS =============
+
 const zoomIn = () => {
     const currentIndex = zoomLevels.value.findIndex(level => level.value === scale.value);
     if (currentIndex < zoomLevels.value.length - 1) {
@@ -448,7 +606,8 @@ const fitToPage = async () => {
     }
 };
 
-// Selection functions
+// ============= SELECTION FUNCTIONS =============
+
 const startSelection = (event) => {
     if (annotationTool.value !== 'area' || event.target.closest('g, rect')) return;
     isDragging.value = true;
@@ -484,10 +643,11 @@ const endSelection = () => {
     tempSelectionRect.value = null;
 };
 
-// Comment functions - FIXED TO PRESERVE PAGINATION
+// ============= COMMENT FUNCTIONS =============
+
 const applyFilter = (filterType) => {
     commentFilter.value = filterType;
-    currentPaginationPage.value = 1; // Reset pagination hanya saat filter berubah
+    currentPaginationPage.value = 1;
     updateDisplayedComments();
 };
 
@@ -514,43 +674,146 @@ const setActiveComment = (comment) => {
 const cancelComment = () => {
     showCommentModal.value = false;
     newCommentData.value = { content: '', position: null, type: '', page_number: 0 };
+    isSubmittingComment.value = false;
 };
 
+// UPDATED: saveComment dengan scale info dan robust error handling
+
+// DEBUGGING FRONTEND REQUEST - CEK NETWORK TAB
+
+// Mari kita debug step by step mengapa scale tidak terkirim
+
+// 1. TAMBAHKAN DEBUGGING EKSTENSIF DI FRONTEND
+// Update function saveComment di PdfReviewer.vue:
+
 const saveComment = async () => {
-    if (!newCommentData.value.content.trim()) return;
-    const payload = { ...newCommentData.value, document_id: props.document.id };
-    if (payload.position) {
-        payload.position = JSON.stringify(payload.position);
+    console.log('=== SAVE COMMENT START DEBUG ===');
+
+    if (!newCommentData.value.content.trim()) {
+        alert('Silakan isi konten komentar terlebih dahulu.');
+        return;
     }
 
+    if (isSubmittingComment.value) return;
+    isSubmittingComment.value = true;
+
     try {
+        // DEBUGGING SCALE VALUE
+        console.log('1. Raw scale ref:', scale);
+        console.log('2. scale.value:', scale.value);
+        console.log('3. typeof scale.value:', typeof scale.value);
+
+        // Ensure scale is a valid number
+        let scaleValue = scale.value;
+        console.log('4. Initial scaleValue:', scaleValue);
+
+        if (typeof scaleValue === 'string') {
+            scaleValue = parseFloat(scaleValue);
+            console.log('5. Converted from string:', scaleValue);
+        }
+
+        if (!scaleValue || scaleValue <= 0 || scaleValue > 10) {
+            console.warn('6. Invalid scale, using default 1.0. Original:', scaleValue);
+            scaleValue = 1.0;
+        }
+
+        console.log('7. Final scaleValue:', scaleValue);
+        console.log('8. typeof final scaleValue:', typeof scaleValue);
+
+        // DEBUGGING CANVAS SIZE
+        console.log('9. canvasSize.value:', canvasSize.value);
+        let canvasWidth = canvasSize.value.width || 800;
+        let canvasHeight = canvasSize.value.height || 600;
+        console.log('10. Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+
+        // DEBUGGING POSITION
+        console.log('11. newCommentData.value:', newCommentData.value);
+        console.log('12. Position:', newCommentData.value.position);
+
+        // PREPARE PAYLOAD WITH EXPLICIT VALUES
+        const payload = {
+            document_id: props.document.id,
+            content: newCommentData.value.content,
+            page_number: newCommentData.value.page_number,
+            type: newCommentData.value.type,
+            position: JSON.stringify(newCommentData.value.position),
+            // EXPLICIT SCALE VALUE
+            created_at_scale: scaleValue,
+            page_dimensions: {
+                width: canvasWidth,
+                height: canvasHeight
+            },
+            original_position: JSON.stringify(newCommentData.value.position)
+        };
+
+        console.log('13. PAYLOAD SEBELUM DIKIRIM:');
+        console.log(JSON.stringify(payload, null, 2));
+
+        // CEK SETIAP FIELD PAYLOAD
+        console.log('14. Payload field check:');
+        Object.keys(payload).forEach(key => {
+            console.log(`   ${key}:`, payload[key], `(${typeof payload[key]})`);
+        });
+
+        console.log('15. API URL:', props.apiStoreUrl);
+        console.log('16. Axios defaults:', axios.defaults);
+
+        // SEND REQUEST WITH DETAILED LOGGING
+        console.log('17. Sending request...');
         const response = await axios.post(props.apiStoreUrl, payload);
+
+        console.log('18. Response status:', response.status);
+        console.log('19. Response headers:', response.headers);
+        console.log('20. Response data:', response.data);
+        console.log('21. Response scale field:', response.data.created_at_scale);
+        console.log('22. typeof response scale:', typeof response.data.created_at_scale);
+
+        // Process response...
         let newCommentFromServer = response.data;
 
-        // Pastikan komentar memiliki semua field yang diperlukan
         newCommentFromServer = {
             ...newCommentFromServer,
             replies: [],
             parent_id: null,
-            status: newCommentFromServer.status || 'open'
+            status: newCommentFromServer.status || 'open',
+            created_at_scale: newCommentFromServer.created_at_scale || scaleValue
         };
 
-        // Parse position untuk memastikan format yang benar
         newCommentFromServer.position = parsePosition(newCommentFromServer.position);
-
-        // Tambahkan ke array comments original
         comments.value.push(newCommentFromServer);
-
-        // Force reactivity update
         comments.value = [...comments.value];
 
-        // Update displayed comments tanpa reset pagination
         updateDisplayedComments();
-
         cancelComment();
+
+        showScaleToastMessage(`Komentar tersimpan dengan zoom ${Math.round(scaleValue * 100)}%`);
+
+        console.log('23. Final comment added:', newCommentFromServer);
+        console.log('=== SAVE COMMENT END DEBUG ===');
+
     } catch (error) {
-        console.error("Gagal menyimpan komentar:", error);
-        alert('Gagal menyimpan komentar.');
+        console.error("=== ERROR DETAILS ===");
+        console.error("Error object:", error);
+        console.error("Response data:", error.response?.data);
+        console.error("Response status:", error.response?.status);
+        console.error("Response headers:", error.response?.headers);
+        console.error("Request config:", error.config);
+        console.error("Request data sent:", error.config?.data);
+        console.error("=== END ERROR ===");
+
+        let errorMessage = 'Gagal menyimpan komentar.';
+        if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        } else if (error.response?.status === 403) {
+            errorMessage = 'Batas waktu pemeriksaan telah berakhir.';
+        } else if (error.response?.status === 422) {
+            errorMessage = 'Data tidak valid. Periksa kembali input Anda.';
+        }
+
+        alert(errorMessage);
+
+    } finally {
+        isSubmittingComment.value = false;
     }
 };
 
@@ -561,8 +824,6 @@ const toggleCommentStatus = async (comment) => {
         await axios.patch(url, { status: newStatus });
         comment.status = newStatus;
         comments.value = [...comments.value];
-
-        // Update displayed comments tanpa reset pagination
         updateDisplayedComments();
     } catch (error) {
         console.error("Gagal mengubah status:", error);
@@ -593,12 +854,8 @@ const saveEdit = async (comment, newContent) => {
             originalComment.updated_at = response.data.updated_at;
         }
 
-        // Force reactivity update untuk data original
         comments.value = [...comments.value];
-
-        // Update displayed comments tanpa reset pagination
         updateDisplayedComments();
-
         cancelEdit();
     } catch (error) {
         console.error("Gagal mengupdate komentar:", error);
@@ -632,12 +889,8 @@ const saveEditReply = async (parentComment, reply, newContent) => {
             }
         }
 
-        // Force reactivity update untuk data original
         comments.value = [...comments.value];
-
-        // Update displayed comments tanpa reset pagination
         updateDisplayedComments();
-
         cancelEditReply();
     } catch (error) {
         console.error("Gagal mengupdate balasan:", error);
@@ -645,7 +898,13 @@ const saveEditReply = async (parentComment, reply, newContent) => {
     }
 };
 
-const parsePosition = (positionData) => {
+// UPDATED: parsePosition dengan support untuk adjusted position
+const parsePosition = (positionData, comment = null) => {
+    // Prioritaskan adjusted_position jika ada
+    if (comment?.adjusted_position) {
+        return comment.adjusted_position;
+    }
+
     if (!positionData) return null;
     try {
         if (typeof positionData === 'object') {
@@ -671,8 +930,6 @@ const deleteComment = async (commentToDelete) => {
             const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', commentToDelete.id);
             await axios.delete(url);
             comments.value = removeCommentFromArray(comments.value, commentToDelete.id);
-
-            // Update displayed comments tanpa reset pagination
             updateDisplayedComments();
         } catch (error) {
             console.error("Gagal menghapus komentar:", error);
@@ -687,8 +944,6 @@ const deleteReply = async (parentComment, reply) => {
             const url = props.apiDeleteUrlTemplate.replace('COMMENT_ID', reply.id);
             await axios.delete(url);
             comments.value = removeCommentFromArray(comments.value, reply.id);
-
-            // Update displayed comments tanpa reset pagination
             updateDisplayedComments();
         } catch (error) {
             console.error("Gagal menghapus balasan:", error);
@@ -721,18 +976,11 @@ const submitReply = async (parentComment, newReplyText) => {
 
     try {
         const response = await axios.post(props.apiStoreUrl, payload);
-
-        // Tambahkan reply ke array utama comments
         comments.value.push(response.data);
-
-        // Update displayed comments tanpa reset pagination
         updateDisplayedComments();
-
-        // Reset form
         cancelReply();
     } catch (error) {
         console.error("Gagal mengirim balasan:", error);
-
         if (error.response?.data?.message) {
             alert(`Gagal mengirim balasan: ${error.response.data.message}`);
         } else {
@@ -741,7 +989,8 @@ const submitReply = async (parentComment, newReplyText) => {
     }
 };
 
-// PDF functions
+// ============= PDF FUNCTIONS =============
+
 const loadPdfFromUrl = async () => {
     isLoading.value = true;
     try {
@@ -779,6 +1028,8 @@ const renderPage = async (num) => {
     }
 };
 
+// ============= WATCHERS =============
+
 // Watch for comments changes - update display tanpa reset pagination
 watch(sortedComments, () => {
     updateDisplayedComments();
@@ -789,6 +1040,24 @@ watch(showCommentModal, (isShowing) => {
         commentTextarea.value?.focus();
     });
 });
+
+// Watch scale changes dengan validation
+watch(scale, (newScale, oldScale) => {
+    if (oldScale && newScale !== oldScale) {
+        console.log(`Scale changed from ${oldScale} to ${newScale}`);
+
+        // Ensure scale is always a number
+        if (typeof newScale === 'string') {
+            console.warn('Scale is string, converting to number');
+            const numScale = parseFloat(newScale);
+            if (!isNaN(numScale) && numScale > 0 && numScale <= 10) {
+                scale.value = numScale;
+            }
+        }
+    }
+}, { immediate: false });
+
+// ============= LIFECYCLE HOOKS =============
 
 // PDF.js worker configuration
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -801,8 +1070,12 @@ onUnmounted(() => {
 });
 
 onMounted(async () => {
-    console.log("Component mounted - Pagination preserved version");
+    console.log("PdfReviewer mounted - Scale-Aware Comments enabled");
+    console.log("Initial scale:", scale.value);
+    console.log("Document:", props.document);
+    console.log("API Store URL:", props.apiStoreUrl);
 
+    // CSRF configuration
     const csrfAxios = axios.create();
     try {
         const res = await csrfAxios.get('http://localhost/app/publyse/public/sanctum/csrf-cookie', {
@@ -813,16 +1086,87 @@ onMounted(async () => {
         console.error('❌ CSRF error:', err.response?.status, err.message);
     }
 
+    // Load PDF
     nextTick(() => {
         loadPdfFromUrl();
     });
 
+    // Setup timestamp refresh
     timestampInterval = setInterval(() => {
         if (comments.value.length > 0) {
             comments.value = [...comments.value];
         }
     }, 60000);
 
+    // Setup keyboard shortcuts
     setupKeyboardShortcuts();
+
+    // Log existing comments with scale info
+    console.log('=== EXISTING COMMENTS DEBUG ===');
+    comments.value.forEach(comment => {
+        console.log(`Comment ${comment.id}:`, {
+            page: comment.page_number,
+            scale: comment.created_at_scale || 'not set',
+            scale_type: typeof comment.created_at_scale,
+            hasPosition: !!comment.position,
+            content: comment.content?.substring(0, 50) + '...'
+        });
+    });
+    console.log('==============================');
+    setTimeout(() => {
+        console.log('=== MANUAL SCALE CHECK ===');
+        console.log('Scale after mount:', scale.value);
+        console.log('Scale type:', typeof scale.value);
+
+        // Test scale change
+        const originalScale = scale.value;
+        scale.value = 1.75; // Test value
+        console.log('After manual change:', scale.value);
+        console.log('Type after change:', typeof scale.value);
+
+        // Reset
+        scale.value = originalScale;
+        console.log('After reset:', scale.value);
+        console.log('=== END MANUAL CHECK ===');
+    }, 2000);
+
+    // Expose debug functions
+    if (typeof window !== 'undefined') {
+        window.forceTestComment = async () => {
+            console.log('=== FORCE TEST COMMENT ===');
+
+            const testPayload = {
+                document_id: props.document.id,
+                content: "FORCE TEST SCALE 1.75",
+                page_number: 1,
+                type: "point",
+                position: JSON.stringify({x: 100, y: 100}),
+                created_at_scale: 1.75, // HARDCODED untuk test
+                page_dimensions: {
+                    width: 800,
+                    height: 600
+                }
+            };
+
+            console.log('Force test payload:', testPayload);
+
+            try {
+                const response = await axios.post(props.apiStoreUrl, testPayload);
+                console.log('Force test response:', response.data);
+                console.log('Force test scale result:', response.data.created_at_scale);
+                return response.data;
+            } catch (error) {
+                console.error('Force test error:', error);
+                return error;
+            }
+        };
+
+        window.getCurrentScale = () => {
+            console.log('Current scale:', scale.value);
+            console.log('Current scale type:', typeof scale.value);
+            console.log('Canvas size:', canvasSize.value);
+            return scale.value;
+        };
+    }
 });
 </script>

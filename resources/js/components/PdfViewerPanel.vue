@@ -185,10 +185,21 @@
                     class="annotation-svg">
 
                     <g v-for="comment in commentsOnCurrentPage" :key="comment.id" @click="handleCommentClick(comment)">
-                        <!-- Render Point Annotation -->
-                        <g v-if="comment.type === 'point' && parsePosition(comment.position)"
-                        :transform="`translate(${parsePosition(comment.position).x || 0}, ${parsePosition(comment.position).y || 0})`"
-                        class="cursor-pointer annotation-group">
+                        <!-- UPDATED: Render Point Annotation dengan Scale-Aware Position -->
+                        <g v-if="comment.type === 'point' && getCommentPosition(comment)"
+                           :transform="`translate(${getCommentPosition(comment).x || 0}, ${getCommentPosition(comment).y || 0})`"
+                           class="cursor-pointer annotation-group">
+
+                            <!-- Scale indicator circle (jika berbeda dari current scale) -->
+                            <circle v-if="comment.created_at_scale && comment.created_at_scale !== scale"
+                                    r="18"
+                                    :fill="comment.status === 'done' ? '#16a34a' : '#3b82f6'"
+                                    fill-opacity="0.2"
+                                    stroke="#fbbf24"
+                                    stroke-width="2"
+                                    stroke-dasharray="4,2"
+                                    class="scale-indicator">
+                            </circle>
 
                             <circle r="12"
                                     :fill="comment.status === 'done' ? '#16a34a' : 'red'"
@@ -203,27 +214,50 @@
                                 }"
                                 class="annotation-point"
                                 d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"
-                                fill="#ef4444"
+                                :fill="comment.status === 'done' ? '#16a34a' : '#ef4444'"
                                 transform="translate(-8, -16) scale(1)">
                             </path>
+
+                            <!-- Scale label (jika berbeda dari current scale) -->
+                            <text v-if="comment.created_at_scale && comment.created_at_scale !== scale"
+                                  x="0" y="-25"
+                                  text-anchor="middle"
+                                  class="scale-label text-xs"
+                                  fill="#1f2937"
+                                  font-weight="bold">
+                                {{ Math.round(comment.created_at_scale * 100) }}%
+                            </text>
                         </g>
 
-                        <!-- Render Area Annotation -->
-                        <rect v-if="comment.type === 'area' && parsePosition(comment.position)"
+                        <!-- UPDATED: Render Area Annotation dengan Scale-Aware Position -->
+                        <rect v-if="comment.type === 'area' && getCommentPosition(comment)"
                             :class="{
                                 'highlighted-area': comment.id === highlightedCommentId && comment.status === 'open',
                                 'highlighted-area-done': comment.id === highlightedCommentId && comment.status === 'done',
-                                'done-area': comment.status === 'done'
+                                'done-area': comment.status === 'done',
+                                'scale-adjusted-area': comment.created_at_scale && comment.created_at_scale !== scale
                             }"
                             class="annotation-area cursor-pointer"
-                            :x="parsePosition(comment.position).x || 0"
-                            :y="parsePosition(comment.position).y || 0"
-                            :width="parsePosition(comment.position).width || 0"
-                            :height="parsePosition(comment.position).height || 0"
-                            stroke="#3b82f6"
-                            fill="rgba(59, 130, 246, 0.2)"
-                            stroke-width="2">
+                            :x="getCommentPosition(comment).x || 0"
+                            :y="getCommentPosition(comment).y || 0"
+                            :width="getCommentPosition(comment).width || 0"
+                            :height="getCommentPosition(comment).height || 0"
+                            :stroke="comment.status === 'done' ? '#16a34a' : (comment.created_at_scale && comment.created_at_scale !== scale ? '#fbbf24' : '#3b82f6')"
+                            :fill="comment.status === 'done' ? 'rgba(22, 163, 74, 0.2)' : (comment.created_at_scale && comment.created_at_scale !== scale ? 'rgba(251, 191, 36, 0.2)' : 'rgba(59, 130, 246, 0.2)')"
+                            :stroke-width="comment.created_at_scale && comment.created_at_scale !== scale ? '3' : '2'"
+                            :stroke-dasharray="comment.created_at_scale && comment.created_at_scale !== scale ? '5,3' : 'none'">
                         </rect>
+
+                        <!-- Scale label untuk area annotation -->
+                        <text v-if="comment.type === 'area' && comment.created_at_scale && comment.created_at_scale !== scale && getCommentPosition(comment)"
+                              :x="(getCommentPosition(comment).x || 0) + (getCommentPosition(comment).width || 0) / 2"
+                              :y="(getCommentPosition(comment).y || 0) - 5"
+                              text-anchor="middle"
+                              class="scale-label text-xs"
+                              fill="#1f2937"
+                              font-weight="bold">
+                            {{ Math.round(comment.created_at_scale * 100) }}%
+                        </text>
                     </g>
 
                     <!-- Temporary selection rectangle -->
@@ -299,6 +333,29 @@
     .annotation-area.done-area {
         stroke: #16a34a;
         fill: rgba(22, 163, 74, 0.2);
+    }
+
+    /* ADDED: Scale-adjusted area styling */
+    .annotation-area.scale-adjusted-area {
+        stroke: #fbbf24;
+        fill: rgba(251, 191, 36, 0.2);
+        stroke-width: 3;
+        stroke-dasharray: 5,3;
+    }
+
+    /* ADDED: Scale indicator styling */
+    .scale-indicator {
+        animation: scale-pulse 2s infinite;
+    }
+
+    @keyframes scale-pulse {
+        0%, 100% { stroke-opacity: 0.5; }
+        50% { stroke-opacity: 1; }
+    }
+
+    .scale-label {
+        font-size: 10px;
+        text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
     }
 
     .temp-selection {
@@ -438,6 +495,16 @@ watch(() => props.scale, (newVal) => {
     localScale.value = newVal;
 }, { immediate: true });
 
+// ADDED: Scale-aware position getter
+const getCommentPosition = (comment) => {
+    // Priority: adjusted_position > parsed position
+    if (comment.adjusted_position) {
+        return comment.adjusted_position;
+    }
+
+    return parsePosition(comment.position);
+};
+
 // Toast notification function
 const showToastMessage = (message, duration = 3000) => {
     toastMessage.value = message;
@@ -497,6 +564,13 @@ const handleWheel = (event) => {
 };
 
 const handleCommentClick = (comment) => {
+    // Show scale info in toast if different
+    if (comment.created_at_scale && comment.created_at_scale !== props.scale) {
+        const commentScale = Math.round(comment.created_at_scale * 100);
+        const currentScale = Math.round(props.scale * 100);
+        showToastMessage(`Komentar dibuat pada zoom ${commentScale}% (saat ini ${currentScale}%)`);
+    }
+
     emit('go-to-comment', comment);
 };
 
@@ -608,7 +682,7 @@ const retryLoading = () => {
     emit('retry-loading');
 };
 
-// Position parsing with better error handling
+// UPDATED: Position parsing dengan enhanced error handling
 const parsePosition = (positionData) => {
     if (!positionData) return null;
 
@@ -641,14 +715,16 @@ const parsePosition = (positionData) => {
 watch(() => props.commentsOnCurrentPage, (newComments, oldComments) => {
     if (process.env.NODE_ENV === 'development') {
         console.log('PdfViewerPanel: commentsOnCurrentPage changed');
-        console.log('Old comments count:', oldComments?.length || 0);
-        console.log('New comments count:', newComments?.length || 0);
-        console.log('New comments:', newComments?.map(c => ({
+        console.log('Comments with scale info:', newComments?.map(c => ({
             id: c.id,
             type: c.type,
             page_number: c.page_number,
+            created_at_scale: c.created_at_scale,
+            current_scale: props.scale,
+            scale_adjusted: c.created_at_scale !== props.scale,
             hasPosition: !!c.position,
-            positionValid: !!parsePosition(c.position)
+            hasAdjustedPosition: !!c.adjusted_position,
+            positionValid: !!getCommentPosition(c)
         })));
     }
 }, { deep: true, immediate: true });
@@ -661,6 +737,19 @@ watch(() => props.isLoading, (isLoading, wasLoading) => {
             loadingError.value = 'PDF gagal dimuat. File mungkin rusak atau tidak dapat diakses.';
         } else {
             loadingError.value = null;
+        }
+    }
+});
+
+// Watch for scale changes to show relevant comments info
+watch(() => props.scale, (newScale, oldScale) => {
+    if (oldScale && newScale !== oldScale && props.commentsOnCurrentPage.length > 0) {
+        const adjustedComments = props.commentsOnCurrentPage.filter(c =>
+            c.created_at_scale && c.created_at_scale !== newScale
+        );
+
+        if (adjustedComments.length > 0) {
+            console.log(`Scale changed to ${Math.round(newScale * 100)}%. ${adjustedComments.length} comments need position adjustment.`);
         }
     }
 });
@@ -718,5 +807,30 @@ onUnmounted(() => {
         document.removeEventListener('keydown', handleKeyDown);
     }
 });
+
+// Debug function for scale-aware comments
+const debugScaleAwareComments = () => {
+    console.log('=== SCALE-AWARE COMMENTS DEBUG ===');
+    console.log('Current scale:', props.scale);
+    console.log('Comments on page:', props.commentsOnCurrentPage.length);
+
+    props.commentsOnCurrentPage.forEach(comment => {
+        const position = getCommentPosition(comment);
+        console.log(`Comment ${comment.id}:`, {
+            created_at_scale: comment.created_at_scale,
+            current_scale: props.scale,
+            needs_adjustment: comment.created_at_scale !== props.scale,
+            original_position: comment.position,
+            adjusted_position: comment.adjusted_position,
+            final_position: position,
+            type: comment.type
+        });
+    });
+    console.log('=================================');
+};
+
+// Expose debug function to window
+if (typeof window !== 'undefined') {
+    window.debugScaleAwareComments = debugScaleAwareComments;
+}
 </script>
-                '

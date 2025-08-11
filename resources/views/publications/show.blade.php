@@ -81,7 +81,7 @@
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-blue-800">Cara Menggunakan Reviewer</h3>
+                            <h3 class="text-sm font-medium text-blue-800">Caraa Menggunakan Reviewer</h3>
                             <div class="mt-2 text-sm text-blue-700">
                                 <ul class="list-disc list-inside space-y-1">
                                     <li>Klik ikon <strong>titik</strong> untuk menambah komentar pada lokasi tertentu</li>
