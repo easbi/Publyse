@@ -162,6 +162,66 @@ class PublicationController extends Controller
         return view('publications.show', compact('publication', 'allVersions', 'versionToShow'));
     }
 
+    /**
+     * Mendapatkan statistik komentar per pemeriksa untuk publikasi
+     */
+    private function getReviewerCommentStats(Publication $publication)
+    {
+        // Ambil semua pemeriksa yang ditugaskan ke publikasi ini
+        $assignedReviewers = $publication->reviewers()->get();
+
+        // Ambil semua dokumen dari publikasi ini
+        $documentIds = $publication->documents()->pluck('id');
+
+        if ($documentIds->isEmpty()) {
+            // Jika tidak ada dokumen, kembalikan stats kosong untuk setiap reviewer
+            return $assignedReviewers->map(function ($reviewer) {
+                return [
+                    'user' => $reviewer,
+                    'total_comments' => 0,
+                    'done_comments' => 0,
+                    'open_comments' => 0,
+                    'completion_percentage' => 0,
+                    'latest_comment_at' => null
+                ];
+            });
+        }
+
+        // Query untuk mendapatkan statistik komentar per user
+        $commentStats = \DB::table('comments')
+            ->join('documents', 'comments.document_id', '=', 'documents.id')
+            ->join('publications', 'documents.publication_id', '=', 'publications.id')
+            ->where('publications.id', $publication->id)
+            ->whereNull('comments.parent_id') // Hanya parent comments, bukan replies
+            ->select([
+                'comments.user_id',
+                \DB::raw('COUNT(*) as total_comments'),
+                \DB::raw('SUM(CASE WHEN comments.status = "done" THEN 1 ELSE 0 END) as done_comments'),
+                \DB::raw('MAX(comments.updated_at) as latest_comment_at')
+            ])
+            ->groupBy('comments.user_id')
+            ->get()
+            ->keyBy('user_id');
+
+        // Gabungkan data reviewer dengan statistik komentar mereka
+        return $assignedReviewers->map(function ($reviewer) use ($commentStats) {
+            $stats = $commentStats->get($reviewer->id);
+
+            $totalComments = $stats ? $stats->total_comments : 0;
+            $doneComments = $stats ? $stats->done_comments : 0;
+            $openComments = $totalComments - $doneComments;
+            $completionPercentage = $totalComments > 0 ? round(($doneComments / $totalComments) * 100) : 0;
+
+            return [
+                'user' => $reviewer,
+                'total_comments' => $totalComments,
+                'done_comments' => $doneComments,
+                'open_comments' => $openComments,
+                'completion_percentage' => $completionPercentage,
+                'latest_comment_at' => $stats ? \Carbon\Carbon::parse($stats->latest_comment_at) : null
+            ];
+        })->sortByDesc('total_comments'); // Urutkan berdasarkan jumlah komentar terbanyak
+    }
 
     /**
      * Menampilkan form untuk menugaskan pemeriksa ke sebuah publikasi.
@@ -276,13 +336,17 @@ class PublicationController extends Controller
             'latest_version' => $documents->first()->version,
         ];
 
+        // Ambil statistik komentar per pemeriksa untuk publikasi ini
+        $reviewerStats = $this->getReviewerCommentStats($publication);
+
         // Kirim data ke view yang sudah dimodifikasi
         return view('publications.summary', compact(
             'publication',
             'allComments',
             'statsByVersion',
             'overallStats',
-            'additionalStats'
+            'additionalStats',
+            'reviewerStats'  // TAMBAHKAN INI
         ));
     }
 }

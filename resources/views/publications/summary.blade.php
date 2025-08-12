@@ -31,6 +31,109 @@
         </div>
     </div>
 
+    <!-- Reviewer Statistics Card -->
+    @if(isset($reviewerStats) && $reviewerStats->isNotEmpty())
+    <div class="bg-white p-6 rounded-lg shadow mb-8">
+        <h4 class="text-md font-semibold mb-4">Statistik Pemeriksa</h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            @foreach($reviewerStats as $stat)
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg p-4 border border-blue-200">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span class="text-white text-sm font-semibold">
+                                {{ strtoupper(substr($stat['user']->fullname, 0, 1)) }}
+                            </span>
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900 text-sm">{{ $stat['user']->fullname }}</h5>
+                            <p class="text-xs text-gray-600">{{ $stat['user']->email }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <!-- Total Comments -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Total Pemeriksaan:</span>
+                        <span class="font-semibold text-blue-600">{{ $stat['total_comments'] }}</span>
+                    </div>
+
+                    <!-- Done vs Open Comments -->
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Selesai ditindaklanjuti:</span>
+                        <span class="font-semibold text-green-600">{{ $stat['done_comments'] }}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Belum ditindaklanjuti:</span>
+                        <span class="font-semibold text-orange-600">{{ $stat['open_comments'] }}</span>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    @if($stat['total_comments'] > 0)
+                    <div class="mt-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-gray-600">Progress Penyelesaian TL :</span>
+                            <span class="text-xs font-semibold text-gray-700">{{ $stat['completion_percentage'] }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
+                                 style="width: {{ $stat['completion_percentage'] }}%"></div>
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Latest Activity -->
+                    @if($stat['latest_comment_at'])
+                    <div class="mt-2 pt-2 border-t border-blue-200">
+                        <p class="text-xs text-gray-500">
+                            Aktivitas terakhir: {{ $stat['latest_comment_at']->diffForHumans() }}
+                        </p>
+                    </div>
+                    @else
+                    <div class="mt-2 pt-2 border-t border-blue-200">
+                        <p class="text-xs text-gray-400 italic">Belum ada aktivitas</p>
+                    </div>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+
+        <!-- Summary Stats for Reviewers -->
+        @php
+            $totalReviewers = $reviewerStats->count();
+            $activeReviewers = $reviewerStats->where('total_comments', '>', 0)->count();
+            $totalAllComments = $reviewerStats->sum('total_comments');
+            $totalDoneComments = $reviewerStats->sum('done_comments');
+            $overallCompletion = $totalAllComments > 0 ? round(($totalDoneComments / $totalAllComments) * 100) : 0;
+        @endphp
+
+        <div class="pt-4 border-t border-gray-200">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="text-lg font-bold text-gray-900">{{ $totalReviewers }}</div>
+                    <div class="text-xs text-gray-600">Total Pemeriksa</div>
+                </div>
+                <div class="bg-green-50 rounded-lg p-3">
+                    <div class="text-lg font-bold text-green-600">{{ $activeReviewers }}</div>
+                    <div class="text-xs text-gray-600">Pemeriksa Aktif</div>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-3">
+                    <div class="text-lg font-bold text-blue-600">{{ $totalAllComments }}</div>
+                    <div class="text-xs text-gray-600">Total Komentar</div>
+                </div>
+                <div class="bg-purple-50 rounded-lg p-3">
+                    <div class="text-lg font-bold text-purple-600">{{ $overallCompletion }}%</div>
+                    <div class="text-xs text-gray-600">Progress Keseluruhan</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Progress Bar -->
     <div class="bg-white p-6 rounded-lg shadow mb-8">
         <h4 class="text-md font-semibold mb-3">Progres Penyelesaian (Semua Versi)</h4>
