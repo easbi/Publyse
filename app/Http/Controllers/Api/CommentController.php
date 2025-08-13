@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Document;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CommentController extends Controller
 {
@@ -79,9 +81,72 @@ class CommentController extends Controller
         // Buat komentar baru
         $comment = Comment::create($dataToCreate);
 
+        try {
+            $this->autoKirimKeAplikasiB(auth()->user());
+        } catch (\Exception $e) {
+            // Log error tapi jangan gagalkan proses utama
+            Log::error('Gagal kirim ke Aplikasi B: ' . $e->getMessage());
+        }
+
         $comment->load('user');
         return response()->json($comment, 201);
     }
+
+    /**
+     * Auto kirim ke Aplikasi B setiap ada comment/pemeriksaan
+     * 1 kali per hari per NIP (tidak duplikat)
+     */
+    private function autoKirimKeAplikasiB($user)
+    {
+        $today = Carbon::now()->format('Y-m-d');
+
+        // CEK: Sudah ada entry hari ini di tabel daily_activity?
+        $sudahAda = DB::connection('khi') // sudah benar
+                     ->table('daily_activity')
+                     ->where('nip', $user->nip) // pastikan field nip ada di user table
+                     ->where('tgl', $today)
+                     ->where('kegiatan', 'Melakukan Pemeriksaan Publikasi di Platform Publyse')
+                     ->exists();
+
+        // JIKA BELUM ADA, INSERT BARU KE daily_activity
+        if (!$sudahAda) {
+            DB::connection('khi') // sudah benar
+              ->table('daily_activity')
+              ->insert([
+                  // FIELD REQUIRED (Null: "NO")
+                  'nip' => $user->nip,
+                  'wfo_wfh' => $user->wfo_wfh ?? 'WFO', // REQUIRED
+                  'satuan' => 'kali', // REQUIRED
+                  'kuantitas' => 1, // REQUIRED
+                  'is_done' => 2, // REQUIRED (default: 2)
+                  'tgl' => $today, // REQUIRED
+                  'created_by' => $user->nip, // REQUIRED
+                  'is_reminded' => 0, // REQUIRED (default: 0)
+
+                  // FIELD OPTIONAL (Null: "YES")
+                  'tim_kerja_id' => 15,
+                  'project_id' => 14,
+                  'kegiatan_utama_id' => 27,
+                  'fungsional' => $user->fungsional ?? null,
+                  'kegiatan' => 'Melakukan Pemeriksaan Publikasi di Platform Publyse',
+                  'keterangan' => 'Auto generate dari comment/poin pemeriksaan - ' . ($user->name ?? $user->nip),
+                  'jenis_kegiatan' => 'UTAMA', // default: 'UTAMA', kita set 'pemeriksaan'
+                  'berkas' => null,
+                  'link' => null,
+                  'tgl_selesai' => null,
+                  'reminder_at' => null,
+
+                  // TIMESTAMPS (auto-handled tapi kita set manual)
+                  'created_at' => now(),
+                  'updated_at' => now()
+              ]);
+
+            Log::info("Berhasil kirim data pemeriksaan ke KHI untuk NIP: {$user->nip}");
+        } else {
+            Log::info("Data pemeriksaan untuk NIP: {$user->nip} hari ini sudah ada");
+        }
+    }
+
 
 
 
