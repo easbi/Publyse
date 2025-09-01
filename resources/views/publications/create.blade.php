@@ -42,7 +42,7 @@
                 <label for="document_file" class="block text-sm font-medium text-gray-700">File Dokumen PDF</label>
                 <input type="file" name="document_file" id="document_file" required
                 class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
-                <p class="mt-1 text-xs text-gray-500">Hanya format .PDF, maksimal ukuran 10MB.</p>
+                <p class="mt-1 text-xs text-gray-500">Hanya format .PDF, maksimal ukuran 30MB.</p>
                 @error('document_file')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror

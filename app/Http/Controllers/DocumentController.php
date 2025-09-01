@@ -16,7 +16,7 @@ class DocumentController extends Controller
         $this->authorize('manage-publication', $publication);
 
         $request->validate([
-            'document_file' => 'required|file|mimes:pdf|max:10240',
+            'document_file' => 'required|file|mimes:pdf|max:30720',
         ]);
 
         $lastVersion = $publication->documents()->max('version') ?? 0;
