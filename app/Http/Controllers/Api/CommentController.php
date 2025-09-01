@@ -122,7 +122,7 @@ class CommentController extends Controller
 
         // PERBAIKAN 1: Nama kegiatan yang konsisten
         $namaKegiatan = !empty($publicationName)
-                    ? "Melakukan Pemeriksaan Publikasi di Platform Publyse {$publicationName}"
+                    ? "Melakukan Pemeriksaan Publikasi {$publicationName} di Platform Publyse "
                     : "Melakukan Pemeriksaan Publikasi di Platform Publyse";
 
         // CEK: Sudah ada entry hari ini di tabel daily_activity?
