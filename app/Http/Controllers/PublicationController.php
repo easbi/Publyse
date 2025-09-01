@@ -272,7 +272,7 @@ class PublicationController extends Controller
     public function summary(Publication $publication)
     {
         // Otorisasi: Hanya yang boleh melihat publikasi yang bisa mengakses ringkasan
-        Gate::authorize('view-publication', $publication);
+        Gate::authorize('view-public-publication');
 
         // Ambil SEMUA dokumen dari publikasi ini (semua versi)
         $documents = $publication->documents()->orderBy('version', 'desc')->get();

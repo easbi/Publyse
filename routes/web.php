@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +47,8 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
      ->middleware(['auth'])->name('dashboard');
 
+Route::get('/publications/{publication}/summary', [PublicationController::class, 'summary'])
+    ->name('publications.summary');
 
 Route::middleware('auth')->group(function () {
     // Route untuk menampilkan semua publikasi
@@ -78,7 +81,7 @@ Route::middleware('auth')->group(function () {
     // Route untuk menyimpan atau memperbarui daftar pemeriksa
     Route::post('/publications/{publication}/assign', [PublicationController::class, 'syncReviewers'])->name('publications.assign.sync');
 
-    Route::get('/publications/{publication}/summary', [PublicationController::class, 'summary'])->name('publications.summary');
+    // Route::get('/publications/{publication}/summary', [PublicationController::class, 'summary'])->name('publications.summary');
 
     Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user());

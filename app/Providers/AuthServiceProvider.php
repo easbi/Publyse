@@ -83,6 +83,11 @@ class AuthServiceProvider extends ServiceProvider
             return $publication->reviewers->contains($user);
         });
 
+        // Gate untuk akses publik tanpa login
+        Gate::define('view-public-publication', function (?User $user = null) {
+            return true; // Semua orang bisa akses
+        });
+
         // Gate untuk mengizinkan update komentar
         Gate::define('update-comment', function (User $user, Comment $comment) {
             if ($user->id === 1) {

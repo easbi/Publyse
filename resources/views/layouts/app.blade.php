@@ -22,12 +22,13 @@
                     <div class="flex">
                         <!-- Logo -->
                         <div class="shrink-0 flex items-center">
-                            <a href="{{ route('dashboard') }}">
+                            <a href="{{ Auth::check() ? route('dashboard') : '/' }}">
                                 <h1 class="font-bold text-lg text-gray-800 dark:text-gray-200">PUBLYSE</h1>
                             </a>
                         </div>
 
-                        <!-- Menu Navigasi untuk Desktop -->
+                        <!-- Menu Navigasi untuk Desktop - Hanya tampil jika sudah login -->
+                        @auth
                         <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
                             <a href="{{ route('dashboard') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('dashboard') ? 'border-indigo-400 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300' }} text-sm font-medium leading-5 transition duration-150 ease-in-out">
                                 Dashboard
@@ -36,10 +37,13 @@
                                 Daftar Publikasi
                             </a>
                         </div>
+                        @endauth
                     </div>
 
-                    <!-- Dropdown Pengguna -->
+                    <!-- Area kanan navbar -->
                     <div class="hidden sm:flex sm:items-center sm:ml-6">
+                        @auth
+                        <!-- Dropdown Pengguna - Jika sudah login -->
                         <div class="relative" x-data="{ open: false }">
                             <button @click="open = ! open" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150">
                                 <div>{{ Auth::user()->fullname }}</div>
@@ -64,6 +68,14 @@
                                 </form>
                             </div>
                         </div>
+                        @else
+                        <!-- Tombol Login - Jika belum login -->
+                        <div class="flex items-center space-x-4">
+                            <a href="{{ route('login') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition duration-150 ease-in-out">
+                                Login
+                            </a>
+                        </div>
+                        @endauth
                     </div>
 
                     <!-- Hamburger Menu untuk Mobile -->
@@ -80,6 +92,7 @@
 
             <!-- Menu Navigasi Mobile (Responsive) -->
             <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+                @auth
                 <div class="pt-2 pb-3 space-y-1">
                     <a href="{{ route('dashboard') }}" class="block pl-3 pr-4 py-2 border-l-4 {{ request()->routeIs('dashboard') ? 'border-indigo-400 bg-indigo-50' : 'border-transparent text-gray-600 hover:bg-gray-50' }} text-base font-medium">Dashboard</a>
                     <a href="{{ route('publications.index') }}" class="block pl-3 pr-4 py-2 border-l-4 {{ request()->routeIs('publications.*') ? 'border-indigo-400 bg-indigo-50' : 'border-transparent text-gray-600 hover:bg-gray-50' }} text-base font-medium">Daftar Publikasi</a>
@@ -88,7 +101,7 @@
                 <!-- Opsi Pengguna Mobile -->
                 <div class="pt-4 pb-1 border-t border-gray-200">
                     <div class="px-4">
-                        <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
+                        <div class="font-medium text-base text-gray-800">{{ Auth::user()->fullname }}</div>
                         <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
                     </div>
                     <div class="mt-3 space-y-1">
@@ -103,6 +116,12 @@
                         </form>
                     </div>
                 </div>
+                @else
+                <!-- Menu Mobile untuk Guest -->
+                <div class="pt-2 pb-3 space-y-1">
+                    <a href="{{ route('login') }}" class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-gray-600 hover:bg-gray-50 text-base font-medium">Login</a>
+                </div>
+                @endauth
             </div>
         </nav>
 

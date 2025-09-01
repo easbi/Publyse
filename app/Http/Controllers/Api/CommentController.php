@@ -100,48 +100,87 @@ class CommentController extends Controller
     {
         $today = Carbon::now()->format('Y-m-d');
 
+        // Ambil comment terbaru hari ini dengan relasi publikasi
+        $latestComment = Comment::where('user_id', auth()->id())
+                            ->whereDate('created_at', $today)
+                            ->with('document.publication')
+                            ->latest()
+                            ->first();
+
+        // Default values
+        $publicationName = '';
+        $publicationId = null;
+        $linkBukti = 'https://sipalink.id/publyse/public/';
+
+        // Ambil data publikasi jika ada
+        if ($latestComment && $latestComment->document && $latestComment->document->publication) {
+            $publication = $latestComment->document->publication;
+            $publicationName = $publication->name ?? '';
+            $publicationId = $publication->id;
+            $linkBukti = url($publicationId ? "/publications/{$publicationId}/summary" : '/');
+        }
+
+        // PERBAIKAN 1: Nama kegiatan yang konsisten
+        $namaKegiatan = !empty($publicationName)
+                    ? "Melakukan Pemeriksaan Publikasi di Platform Publyse {$publicationName}"
+                    : "Melakukan Pemeriksaan Publikasi di Platform Publyse";
+
         // CEK: Sudah ada entry hari ini di tabel daily_activity?
-        $sudahAda = DB::connection('khi') // sudah benar
-                     ->table('daily_activity')
-                     ->where('nip', $user->nip) // pastikan field nip ada di user table
-                     ->where('tgl', $today)
-                     ->where('kegiatan', 'Melakukan Pemeriksaan Publikasi di Platform Publyse')
-                     ->exists();
+        $sudahAda = DB::connection('khi')
+                    ->table('daily_activity')
+                    ->where('nip', $user->nip)
+                    ->where('tgl', $today)
+                    ->where('kegiatan', 'LIKE', 'Melakukan Pemeriksaan Publikasi%')
+                    ->exists();
 
         // JIKA BELUM ADA, INSERT BARU KE daily_activity
         if (!$sudahAda) {
-            DB::connection('khi') // sudah benar
-              ->table('daily_activity')
-              ->insert([
-                  // FIELD REQUIRED (Null: "NO")
-                  'nip' => $user->nip,
-                  'wfo_wfh' => $user->wfo_wfh ?? 'WFO', // REQUIRED
-                  'satuan' => 'kali', // REQUIRED
-                  'kuantitas' => 1, // REQUIRED
-                  'is_done' => 2, // REQUIRED (default: 2)
-                  'tgl' => $today, // REQUIRED
-                  'created_by' => $user->nip, // REQUIRED
-                  'is_reminded' => 0, // REQUIRED (default: 0)
+            DB::connection('khi')
+            ->table('daily_activity')
+            ->insert([
+                // FIELD REQUIRED (Null: "NO")
+                'nip' => $user->nip,
+                'wfo_wfh' => $user->wfo_wfh ?? 'WFO',
+                'satuan' => 'kali',
+                'kuantitas' => 1,
+                'is_done' => 1, // 1 = sedang dikerjakan, 2 = selesai
+                'tgl' => $today,
+                'created_by' => $user->nip,
+                'is_reminded' => 0,
 
-                  // FIELD OPTIONAL (Null: "YES")
-                  'tim_kerja_id' => 15,
-                  'project_id' => 14,
-                  'kegiatan_utama_id' => 27,
-                  'fungsional' => $user->fungsional ?? null,
-                  'kegiatan' => 'Melakukan Pemeriksaan Publikasi di Platform Publyse',
-                  'keterangan' => 'Auto generate dari comment/poin pemeriksaan - ' . ($user->name ?? $user->nip),
-                  'jenis_kegiatan' => 'UTAMA', // default: 'UTAMA', kita set 'pemeriksaan'
-                  'berkas' => null,
-                  'link' => null,
-                  'tgl_selesai' => null,
-                  'reminder_at' => null,
+                // FIELD OPTIONAL (Null: "YES")
+                'tim_kerja_id' => 15,
+                'project_id' => 14,
+                'kegiatan_utama_id' => 27,
+                'fungsional' => $user->fungsional ?? null,
 
-                  // TIMESTAMPS (auto-handled tapi kita set manual)
-                  'created_at' => now(),
-                  'updated_at' => now()
-              ]);
+                // PERBAIKAN 2: Gunakan nama kegiatan yang dynamic
+                'kegiatan' => $namaKegiatan,
 
-            Log::info("Berhasil kirim data pemeriksaan ke KHI untuk NIP: {$user->nip}");
+                // PERBAIKAN 3: Keterangan yang lebih informatif
+                'keterangan' => !empty($publicationName)
+                                ? "Auto generate dari comment/poin pemeriksaan publikasi: {$publicationName} - " . ($user->name ?? $user->nip)
+                                : "Auto generate dari comment/poin pemeriksaan - " . ($user->name ?? $user->nip),
+
+                'jenis_kegiatan' => 'UTAMA',
+                'berkas' => null,
+                'link' => $linkBukti,
+
+                // PERBAIKAN 4: tgl_selesai diisi jika is_done = 2 (selesai)
+                'tgl_selesai' => null, // atau $today jika mau set sebagai selesai hari ini
+                'reminder_at' => null,
+
+                // TIMESTAMPS
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // PERBAIKAN 5: Log yang lebih informatif
+            $logMessage = !empty($publicationName)
+                        ? "Berhasil kirim data pemeriksaan publikasi '{$publicationName}' ke KHI untuk NIP: {$user->nip}"
+                        : "Berhasil kirim data pemeriksaan ke KHI untuk NIP: {$user->nip}";
+
+            Log::info($logMessage);
         } else {
             Log::info("Data pemeriksaan untuk NIP: {$user->nip} hari ini sudah ada");
         }
