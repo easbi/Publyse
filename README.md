@@ -1,66 +1,272 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Publyse - Publication Review System
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <img src="https://via.placeholder.com/400x100/3B82F6/FFFFFF?text=PUBLYSE" alt="Publyse Logo" width="400">
 </p>
 
-## About Laravel
+<p align="center">
+<img src="https://img.shields.io/badge/Laravel-10.x-FF2D20?style=flat&logo=laravel" alt="Laravel Version">
+<img src="https://img.shields.io/badge/Vue.js-3.x-4FC08D?style=flat&logo=vue.js" alt="Vue.js Version">
+<img src="https://img.shields.io/badge/PDF.js-3.11-FF6B35?style=flat&logo=mozilla" alt="PDF.js Version">
+<img src="https://img.shields.io/badge/Tailwind-3.x-06B6D4?style=flat&logo=tailwindcss" alt="Tailwind CSS">
+<img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## About Publyse
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Publyse is a sophisticated **Publication Review System** designed to streamline the academic and professional publication review process. Built with modern web technologies, it provides an intuitive platform for reviewers to examine, annotate, and collaborate on PDF documents with precision and efficiency.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Key Features
 
-## Learning Laravel
+### 🔍 **Advanced PDF Review System**
+- **Interactive PDF Viewer** with zoom controls (25% - 500%)
+- **Scale-Aware Annotations** - comments maintain accurate positioning across different zoom levels
+- **Dual Annotation Types**: Point markers and area selections
+- **Real-time Navigation** with page controls and keyboard shortcuts
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 💬 **Smart Comment Management**
+- **Hierarchical Comments** with reply threads
+- **Status Tracking** (Open/Done) with role-based permissions
+- **Scale-Aware Navigation** - automatically adjusts zoom to comment's original scale
+- **Visual Scale Indicators** with color-coded badges
+- **Pagination** for performance optimization
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 🎨 **Modern User Interface**
+- **Responsive Design** optimized for desktop and tablet
+- **Split-Screen Layout** (5:7 ratio) - PDF viewer and comment sidebar
+- **Real-time Feedback** with toast notifications
+- **Accessibility Features** with ARIA labels and keyboard navigation
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 🚀 **Technical Excellence**
+- **Vue 3 Composition API** for reactive components
+- **Laravel 10** backend with RESTful API
+- **MySQL Database** with optimized queries
+- **PDF.js Integration** for client-side PDF rendering
+- **Tailwind CSS** for utility-first styling
 
-## Laravel Sponsors
+## System Requirements
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+- **PHP** >= 8.1
+- **Laravel** >= 10.0
+- **Node.js** >= 16.0
+- **MySQL** >= 8.0
+- **Modern Browser** with JavaScript enabled
 
-### Premium Partners
+## Installation
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+### 1. Clone Repository
+```bash
+git clone https://github.com/your-org/publyse.git
+cd publyse
+```
+
+### 2. Backend Setup
+```bash
+# Install PHP dependencies
+composer install
+
+# Copy environment file
+cp .env.example .env
+
+# Generate application key
+php artisan key:generate
+
+# Configure database in .env file
+DB_DATABASE=publyse
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+### 3. Database Migration
+```bash
+# Run migrations
+php artisan migrate
+
+# Seed sample data (optional)
+php artisan db:seed
+```
+
+### 4. Frontend Setup
+```bash
+# Install Node.js dependencies
+npm install
+
+# Build assets for development
+npm run dev
+
+# Or build for production
+npm run build
+```
+
+### 5. Start Development Server
+```bash
+# Laravel development server
+php artisan serve
+
+# Vite development server (separate terminal)
+npm run dev
+```
+
+## Usage Guide
+
+### For Reviewers
+
+1. **Access Document**: Navigate to assigned publication
+2. **Set Optimal Zoom**: Choose appropriate zoom level for detailed review
+3. **Add Comments**: 
+   - Use **Point Tool** for specific location comments
+   - Use **Area Tool** for section-based feedback
+4. **Navigate Comments**: Click comment badges to jump to exact locations with original zoom
+5. **Manage Status**: Mark comments as "Done" when addressed
+
+### For Authors
+
+1. **View Feedback**: Browse comments in organized sidebar
+2. **Scale-Aware Navigation**: Comments automatically adjust zoom for accurate positioning
+3. **Reply to Comments**: Engage in threaded discussions
+4. **Track Progress**: Monitor comment status (Open/Done)
+
+## API Endpoints
+
+### Comments
+```
+GET    /api/comments              # List comments
+POST   /api/comments              # Create comment
+PUT    /api/comments/{id}         # Update comment
+DELETE /api/comments/{id}         # Delete comment
+PATCH  /api/comments/{id}/status  # Update status
+```
+
+### Documents
+```
+GET    /api/documents/{id}        # Get document details
+GET    /api/documents/{id}/pdf    # Download PDF
+```
+
+## Database Schema
+
+### Comments Table
+```sql
+CREATE TABLE comments (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    page_number INT NOT NULL,
+    type ENUM('point', 'area') NOT NULL,
+    position LONGTEXT, -- JSON coordinates
+    content TEXT NOT NULL,
+    status ENUM('open', 'done') DEFAULT 'open',
+    created_at_scale DECIMAL(4,2) DEFAULT 1.00, -- Scale awareness
+    page_dimensions LONGTEXT, -- JSON page size
+    original_position LONGTEXT, -- Backup position
+    parent_id BIGINT NULL, -- For replies
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+## Vue Components Architecture
+
+```
+PdfReviewer.vue (Main Container)
+├── PdfViewerPanel.vue (PDF Display)
+│   ├── PDF Canvas Rendering
+│   ├── Annotation Layer (SVG)
+│   ├── Zoom Controls
+│   └── Navigation Controls
+└── CommentManagement.vue (Sidebar)
+    ├── Filter Controls
+    ├── Comment List with Pagination
+    ├── Scale-Aware Badges
+    └── Reply Management
+```
+
+## Scale-Aware Technology
+
+Publyse features innovative **scale-aware annotations** that maintain positional accuracy across different zoom levels:
+
+- **Position Normalization**: Coordinates stored relative to 100% scale
+- **Dynamic Adjustment**: Real-time position calculation for current zoom
+- **Visual Indicators**: Color-coded badges show original zoom level
+- **Auto-Navigation**: Clicking comments adjusts zoom to original scale
+
+## Development
+
+### Code Style
+- **PHP**: PSR-12 coding standard
+- **JavaScript**: ESLint with Vue 3 configuration
+- **CSS**: Tailwind utility classes with scoped components
+
+### Testing
+```bash
+# PHP Unit Tests
+php artisan test
+
+# JavaScript Tests
+npm run test
+```
+
+### Building for Production
+```bash
+# Optimize Laravel
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Build frontend assets
+npm run build
+```
 
 ## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
-## Code of Conduct
+### Contribution Guidelines
+- Follow existing code style and conventions
+- Add tests for new features
+- Update documentation as needed
+- Ensure cross-browser compatibility
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Security
 
-## Security Vulnerabilities
+Report security vulnerabilities to: security@publyse.com
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+All security issues will be promptly addressed following responsible disclosure practices.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Publyse is open-source software licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+## Support & Documentation
+
+- **Documentation**: [docs.publyse.com](https://docs.publyse.com)
+- **Issues**: [GitHub Issues](https://github.com/easbi/Publyse/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/easbi/Publyse/discussions)
+- **Email**: easbi@bps.go.id
+- 
+## Roadmap
+
+- [ ] Real-time collaboration features
+- [ ] Advanced annotation tools (highlighting, drawing)
+- [ ] Export functionality (PDF with comments)
+- [ ] Mobile application
+- [ ] Integration with popular academic platforms
+- [ ] Advanced analytics and reporting
+- [ ] Multi-language support
+
+---
+
+<p align="center">
+  Built with ❤️ for the academic and professional community
+</p>
+
+<p align="center">
+  <a href="https://laravel.com">Laravel</a> •
+  <a href="https://vuejs.org">Vue.js</a> •
+  <a href="https://mozilla.github.io/pdf.js/">PDF.js</a> •
+  <a href="https://tailwindcss.com">Tailwind CSS</a>
+</p>
