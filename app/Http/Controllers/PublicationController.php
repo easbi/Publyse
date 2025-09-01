@@ -38,7 +38,7 @@ class PublicationController extends Controller
             'name' => 'required|string|max:200',
             'release_date' => 'required|date',
             'review_deadline' => 'required|date|after_or_equal:today',
-            'document_file' => 'required|file|mimes:pdf|max:10240', // max 10MB
+            'document_file' => 'required|file|mimes:pdf|max:30720', // max 30MB
         ]);
 
         $publication = Publication::create([
