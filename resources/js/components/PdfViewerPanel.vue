@@ -7,6 +7,48 @@
                 <h1 class="text-xl font-bold text-gray-700">Versi: {{ document.version }}</h1>
             </div>
 
+            <!-- Search Box PDF -->
+            <div class="flex-1 max-w-md mx-4">
+                <div class="relative">
+                    <!-- Search Navigation -->
+                    <div v-if="searchMatches.length > 0" class="absolute right-2 top-1.5 flex items-center gap-1">
+                        <span class="text-xs text-gray-500">{{ currentMatchIndex + 1 }}/{{ searchMatches.length }}</span>
+                        <button
+                            @click="goToPreviousMatch"
+                            :disabled="searchMatches.length <= 1"
+                            class="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                            title="Hasil sebelumnya"
+                        >
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                            </svg>
+                        </button>
+                        <button
+                            @click="goToNextMatch"
+                            :disabled="searchMatches.length <= 1"
+                            class="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                            title="Hasil selanjutnya"
+                        >
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Clear Search -->
+                    <button
+                        v-if="pdfSearchQuery"
+                        @click="clearPdfSearch"
+                        class="absolute right-2 top-2 p-1 hover:bg-gray-200 rounded-full"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             <!-- Kontrol Navigasi PDF -->
             <div v-if="pdfDoc" class="flex items-center gap-3">
                 <button
@@ -148,6 +190,72 @@
             </div>
         </header>
 
+        <!-- Search Box PDF - Ini yang dipake -->
+        <div v-if="pdfDoc" class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            <div class="max-w-md mx-auto">
+                <div class="relative">
+                    <input
+                        v-model="pdfSearchQuery"
+                        type="text"
+                        placeholder="Jangan Cari teks dalam PDF..."
+                        @keyup.enter="searchInPdf"
+                        @input="handleSearchInput"
+                        class="w-full px-3 py-2 pl-10 pr-24 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-white"
+                    >
+
+                    <!-- Search Navigation -->
+                    <div v-if="searchMatches.length > 0" class="absolute right-2 top-1.5 flex items-center gap-1">
+                        <span class="text-xs text-gray-500">{{ currentMatchIndex + 1 }}/{{ searchMatches.length }}</span>
+                        <button
+                            @click="goToPreviousMatch"
+                            :disabled="searchMatches.length <= 1"
+                            class="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                            title="Hasil sebelumnya"
+                        >
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                            </svg>
+                        </button>
+                        <button
+                            @click="goToNextMatch"
+                            :disabled="searchMatches.length <= 1"
+                            class="p-1 hover:bg-gray-200 rounded disabled:opacity-50"
+                            title="Hasil selanjutnya"
+                        >
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Clear Search -->
+                    <button
+                        v-if="pdfSearchQuery"
+                        @click="clearPdfSearch"
+                        class="absolute right-2 top-2 p-1 hover:bg-gray-200 rounded-full"
+                        title="Hapus pencarian"
+                    >
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Search Results Info -->
+                <div v-if="pdfSearchQuery && !isSearching" class="mt-2 text-xs text-center">
+                    <span v-if="searchMatches.length > 0" class="text-green-600">
+                        {{ searchMatches.length }} hasil ditemukan
+                    </span>
+                    <span v-else class="text-gray-500">
+                        Tidak ada hasil ditemukan
+                    </span>
+                </div>
+                <div v-if="isSearching" class="mt-2 text-xs text-center text-blue-500">
+                    Mencari...
+                </div>
+            </div>
+        </div>
+
         <!-- Area Tampilan PDF -->
         <div class="flex-grow p-4 overflow-auto flex justify-center items-start bg-gray-100" ref="pdfContainer">
             <div v-if="isLoading" class="flex items-center justify-center h-full">
@@ -174,6 +282,12 @@
 
             <div v-if="pdfDoc" id="pdf-container" class="relative" :style="{ transform: `scale(${displayScale})`, transformOrigin: 'top center' }">
                 <canvas id="pdf-canvas" class="shadow-lg"></canvas>
+
+                <!-- Text Layer untuk PDF Search -->
+                <div id="text-layer" class="text-layer"
+                     :style="{width: canvasSize.width + 'px', height: canvasSize.height + 'px'}">
+                </div>
+
                 <svg id="annotation-layer"
                     @mousedown="handleMouseDown"
                     @mousemove="handleMouseMove"
@@ -313,6 +427,30 @@
         transition: transform 0.1s ease-out;
     }
 
+    /* Text Layer untuk PDF Search */
+    .text-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 5;
+        pointer-events: none;
+        opacity: 0;
+    }
+
+    /* Search highlight styling */
+    .text-layer .search-highlight {
+        background-color: #fbbf24 !important;
+        color: transparent !important;
+        border-radius: 2px;
+        opacity: 0.7;
+        transition: opacity 0.3s ease;
+    }
+
+    .text-layer .search-highlight.current {
+        background-color: #f97316 !important;
+        opacity: 0.9;
+    }
+
     .annotation-svg {
         position: absolute;
         top: 0;
@@ -439,7 +577,7 @@
 </style>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 
 // Define emits
 const emit = defineEmits([
@@ -486,6 +624,14 @@ const loadingError = ref(null);
 const showToast = ref(false);
 const toastMessage = ref('');
 
+// PDF Search state
+const pdfSearchQuery = ref('');
+const searchMatches = ref([]);
+const currentMatchIndex = ref(0);
+const isSearching = ref(false);
+const searchDebounceTimeout = ref(null);
+const pageTextContents = ref(new Map()); // Cache text content per page
+
 // Watchers to sync local state with props
 watch(() => props.currentPageNum, (newVal) => {
     currentPageNumInput.value = newVal;
@@ -494,6 +640,20 @@ watch(() => props.currentPageNum, (newVal) => {
 watch(() => props.scale, (newVal) => {
     localScale.value = newVal;
 }, { immediate: true });
+
+// Watch for page changes to update search highlights
+watch(() => props.currentPageNum, async () => {
+    if (pdfSearchQuery.value) {
+        await updateSearchHighlights();
+    }
+});
+
+// Watch for scale changes to update search highlights
+watch(() => props.scale, async () => {
+    if (pdfSearchQuery.value) {
+        await updateSearchHighlights();
+    }
+});
 
 // ADDED: Scale-aware position getter
 const getCommentPosition = (comment) => {
@@ -512,6 +672,216 @@ const showToastMessage = (message, duration = 3000) => {
     setTimeout(() => {
         showToast.value = false;
     }, duration);
+};
+
+// PDF Search functions
+const handleSearchInput = () => {
+    if (searchDebounceTimeout.value) {
+        clearTimeout(searchDebounceTimeout.value);
+    }
+
+    searchDebounceTimeout.value = setTimeout(() => {
+        searchInPdf();
+    }, 500);
+};
+
+const searchInPdf = async () => {
+    if (!pdfSearchQuery.value.trim() || !props.pdfDoc) {
+        clearSearchHighlights();
+        return;
+    }
+
+    isSearching.value = true;
+    searchMatches.value = [];
+    currentMatchIndex.value = 0;
+
+    try {
+        await performPdfSearch();
+        if (searchMatches.value.length > 0) {
+            goToMatch(0);
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        showToastMessage('Error during search');
+    } finally {
+        isSearching.value = false;
+    }
+};
+
+const performPdfSearch = async () => {
+    const query = pdfSearchQuery.value.toLowerCase().trim();
+    const matches = [];
+
+    for (let pageNum = 1; pageNum <= props.totalPages; pageNum++) {
+        try {
+            const textContent = await getPageTextContent(pageNum);
+            if (textContent) {
+                const pageText = textContent.items.map(item => item.str).join(' ').toLowerCase();
+
+                let searchIndex = 0;
+                let matchIndex;
+
+                while ((matchIndex = pageText.indexOf(query, searchIndex)) !== -1) {
+                    matches.push({
+                        pageNum,
+                        textIndex: matchIndex,
+                        text: query
+                    });
+                    searchIndex = matchIndex + 1;
+                }
+            }
+        } catch (error) {
+            console.warn(`Error searching page ${pageNum}:`, error);
+        }
+    }
+
+    searchMatches.value = matches;
+};
+
+const getPageTextContent = async (pageNum) => {
+    // Check cache first
+    if (pageTextContents.value.has(pageNum)) {
+        return pageTextContents.value.get(pageNum);
+    }
+
+    try {
+        const page = await props.pdfDoc.getPage(pageNum);
+        const textContent = await page.getTextContent();
+
+        // Cache the result
+        pageTextContents.value.set(pageNum, textContent);
+        return textContent;
+    } catch (error) {
+        console.error(`Error getting text content for page ${pageNum}:`, error);
+        return null;
+    }
+};
+
+const updateSearchHighlights = async () => {
+    if (!pdfSearchQuery.value.trim()) {
+        clearSearchHighlights();
+        return;
+    }
+
+    const textLayer = document.getElementById('text-layer');
+    if (!textLayer) return;
+
+    // Clear existing highlights
+    textLayer.innerHTML = '';
+
+    try {
+        const textContent = await getPageTextContent(props.currentPageNum);
+        if (!textContent) return;
+
+        const viewport = await getPageViewport(props.currentPageNum);
+        if (!viewport) return;
+
+        renderTextLayer(textContent, viewport, textLayer);
+        highlightSearchTerms(textLayer);
+    } catch (error) {
+        console.error('Error updating search highlights:', error);
+    }
+};
+
+const getPageViewport = async (pageNum) => {
+    try {
+        const page = await props.pdfDoc.getPage(pageNum);
+        return page.getViewport({ scale: props.scale });
+    } catch (error) {
+        console.error(`Error getting viewport for page ${pageNum}:`, error);
+        return null;
+    }
+};
+
+const renderTextLayer = (textContent, viewport, textLayer) => {
+    textContent.items.forEach((textItem, index) => {
+        const textDiv = document.createElement('div');
+        const transform = textItem.transform;
+
+        // Calculate position
+        const x = transform[4];
+        const y = transform[5];
+
+        // Apply transformation
+        textDiv.style.position = 'absolute';
+        textDiv.style.left = x + 'px';
+        textDiv.style.top = (viewport.height - y) + 'px';
+        textDiv.style.fontSize = Math.abs(transform[0]) + 'px';
+        textDiv.style.fontFamily = textItem.fontName || 'Arial';
+        textDiv.style.color = 'transparent';
+        textDiv.style.pointerEvents = 'none';
+        textDiv.textContent = textItem.str;
+
+        textLayer.appendChild(textDiv);
+    });
+};
+
+const highlightSearchTerms = (textLayer) => {
+    const query = pdfSearchQuery.value.toLowerCase().trim();
+    const textNodes = textLayer.querySelectorAll('div');
+
+    textNodes.forEach(node => {
+        const text = node.textContent.toLowerCase();
+        if (text.includes(query)) {
+            node.classList.add('search-highlight');
+
+            // Check if this is the current match
+            const currentMatch = searchMatches.value[currentMatchIndex.value];
+            if (currentMatch && currentMatch.pageNum === props.currentPageNum) {
+                // This is a simplified check - in a full implementation,
+                // you'd want to track exact text positions
+                node.classList.add('current');
+            }
+        }
+    });
+};
+
+const clearSearchHighlights = () => {
+    const textLayer = document.getElementById('text-layer');
+    if (textLayer) {
+        textLayer.innerHTML = '';
+    }
+};
+
+const clearPdfSearch = () => {
+    pdfSearchQuery.value = '';
+    searchMatches.value = [];
+    currentMatchIndex.value = 0;
+    clearSearchHighlights();
+};
+
+const goToNextMatch = () => {
+    if (searchMatches.value.length > 1) {
+        currentMatchIndex.value = (currentMatchIndex.value + 1) % searchMatches.value.length;
+        goToMatch(currentMatchIndex.value);
+    }
+};
+
+const goToPreviousMatch = () => {
+    if (searchMatches.value.length > 1) {
+        currentMatchIndex.value = currentMatchIndex.value === 0
+            ? searchMatches.value.length - 1
+            : currentMatchIndex.value - 1;
+        goToMatch(currentMatchIndex.value);
+    }
+};
+
+const goToMatch = async (matchIndex) => {
+    const match = searchMatches.value[matchIndex];
+    if (!match) return;
+
+    // Navigate to the page if needed
+    if (match.pageNum !== props.currentPageNum) {
+        emit('page-changed', match.pageNum);
+
+        // Wait for page to render
+        await nextTick();
+        setTimeout(async () => {
+            await updateSearchHighlights();
+        }, 100);
+    } else {
+        await updateSearchHighlights();
+    }
 };
 
 // Page navigation functions
@@ -711,53 +1081,39 @@ const parsePosition = (positionData) => {
     }
 };
 
-// Watch untuk debugging perubahan props dengan improved logging
-watch(() => props.commentsOnCurrentPage, (newComments, oldComments) => {
-    if (process.env.NODE_ENV === 'development') {
-        console.log('PdfViewerPanel: commentsOnCurrentPage changed');
-        console.log('Comments with scale info:', newComments?.map(c => ({
-            id: c.id,
-            type: c.type,
-            page_number: c.page_number,
-            created_at_scale: c.created_at_scale,
-            current_scale: props.scale,
-            scale_adjusted: c.created_at_scale !== props.scale,
-            hasPosition: !!c.position,
-            hasAdjustedPosition: !!c.adjusted_position,
-            positionValid: !!getCommentPosition(c)
-        })));
-    }
-}, { deep: true, immediate: true });
-
-// Watch for loading errors
-watch(() => props.isLoading, (isLoading, wasLoading) => {
-    if (wasLoading && !isLoading) {
-        // Loading finished, check if PDF loaded successfully
-        if (!props.pdfDoc) {
-            loadingError.value = 'PDF gagal dimuat. File mungkin rusak atau tidak dapat diakses.';
-        } else {
-            loadingError.value = null;
-        }
-    }
-});
-
-// Watch for scale changes to show relevant comments info
-watch(() => props.scale, (newScale, oldScale) => {
-    if (oldScale && newScale !== oldScale && props.commentsOnCurrentPage.length > 0) {
-        const adjustedComments = props.commentsOnCurrentPage.filter(c =>
-            c.created_at_scale && c.created_at_scale !== newScale
-        );
-
-        if (adjustedComments.length > 0) {
-            console.log(`Scale changed to ${Math.round(newScale * 100)}%. ${adjustedComments.length} comments need position adjustment.`);
-        }
-    }
-});
-
 // Keyboard event handlers
 const handleKeyDown = (event) => {
     // Handle keyboard shortcuts
-    if (event.target.tagName === 'INPUT') return; // Don't interfere with input fields
+    if (event.target.tagName === 'INPUT' && event.target.placeholder === 'Cari teks dalam PDF...') {
+        // Allow normal typing in search box, but handle special keys
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (event.shiftKey) {
+                goToPreviousMatch();
+            } else {
+                goToNextMatch();
+            }
+        } else if (event.key === 'Escape') {
+            clearPdfSearch();
+            event.target.blur();
+        }
+        return;
+    }
+
+    if (event.target.tagName === 'INPUT') return; // Don't interfere with other input fields
+
+    // Global shortcuts
+    if (event.ctrlKey || event.metaKey) {
+        if (event.key === 'f' || event.key === 'F') {
+            event.preventDefault();
+            const searchInput = document.querySelector('input[placeholder="Jangan teks dalam PDF..."]');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+            return;
+        }
+    }
 
     switch (event.key) {
         case 'ArrowLeft':
@@ -785,26 +1141,67 @@ const handleKeyDown = (event) => {
             }
             break;
         case 'Escape':
-            // Clear any active annotation tools
+            // Clear any active annotation tools or search
             if (props.annotationTool) {
                 event.preventDefault();
                 emit('annotation-tool-changed', null);
+            }
+            if (pdfSearchQuery.value) {
+                event.preventDefault();
+                clearPdfSearch();
+            }
+            break;
+        case 'F3':
+            event.preventDefault();
+            if (searchMatches.value.length > 0) {
+                if (event.shiftKey) {
+                    goToPreviousMatch();
+                } else {
+                    goToNextMatch();
+                }
             }
             break;
     }
 };
 
-// Add keyboard event listener
-if (typeof window !== 'undefined') {
+onMounted(() => {
     document.addEventListener('keydown', handleKeyDown);
-}
-
-// Cleanup on unmount
-import { onUnmounted } from 'vue';
+});
 
 onUnmounted(() => {
-    if (typeof window !== 'undefined') {
-        document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('keydown', handleKeyDown);
+
+    // Clear search timeout
+    if (searchDebounceTimeout.value) {
+        clearTimeout(searchDebounceTimeout.value);
+    }
+
+    // Clear text content cache
+    pageTextContents.value.clear();
+});
+
+// Watch for loading errors
+watch(() => props.isLoading, (isLoading, wasLoading) => {
+    if (wasLoading && !isLoading) {
+        // Loading finished, check if PDF loaded successfully
+        if (!props.pdfDoc) {
+            loadingError.value = 'PDF gagal dimuat. File mungkin rusak atau tidak dapat diakses.';
+        } else {
+            loadingError.value = null;
+        }
+    }
+});
+
+// Watch for scale changes to show relevant comments info
+watch(() => props.scale, (newScale, oldScale) => {
+    if (oldScale && newScale !== oldScale && props.commentsOnCurrentPage.length > 0) {
+        const adjustedComments = props.commentsOnCurrentPage.filter(c =>
+            c.created_at_scale && c.created_at_scale !== newScale
+        );
+
+        if (adjustedComments.length > 0) {
+            console.log(`Scale changed to ${Math.round(newScale * 100)}%. ${adjustedComments.length} comments need position adjustment.`);
+        }
     }
 });
 
@@ -832,5 +1229,14 @@ const debugScaleAwareComments = () => {
 // Expose debug function to window
 if (typeof window !== 'undefined') {
     window.debugScaleAwareComments = debugScaleAwareComments;
+    window.debugPdfSearch = () => {
+        console.log('=== PDF SEARCH DEBUG ===');
+        console.log('Search query:', pdfSearchQuery.value);
+        console.log('Search matches:', searchMatches.value);
+        console.log('Current match index:', currentMatchIndex.value);
+        console.log('Page text cache size:', pageTextContents.value.size);
+        console.log('========================');
+    };
 }
+
 </script>

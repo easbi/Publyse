@@ -4,6 +4,7 @@ use App\Http\Controllers\PublicationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\SuperilisController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
@@ -93,6 +94,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->name('api.comments.destroy');
         Route::patch('/comments/{comment}/status', [CommentController::class, 'updateStatus'])->name('api.comments.updateStatus');
     });
+
+    // Route untuk menampilkan halaman form cetak surat
+    Route::get('/publications/{publication}/superilis/create', [SuperilisController::class, 'create'])->name('superilis.create');
+
+    // Route untuk memproses form dan menghasilkan PDF
+    Route::post('/publications/{publication}/superilis/generate', [SuperilisController::class, 'generate'])->name('superilis.generate');
+
 
 });
 

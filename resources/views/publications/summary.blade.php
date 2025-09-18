@@ -1,14 +1,34 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+<div x-data="{ showModal: false }" class="max-w-7xl mx-auto sm:px-6 lg:px-8">
     <div class="flex justify-between items-center mb-4">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-800">Ringkasan Pemeriksaan</h2>
-            <p class="text-gray-600">Publikasi: {{ $publication->name }}</p>
-        </div>
-        <a href="{{ route('dashboard') }}" class="text-sm text-blue-600 hover:underline">&larr; Kembali ke Dashboard</a>
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800">Ringkasan Pemeriksaan</h2>
+        <p class="text-gray-600">Publikasi: {{ $publication->name }}</p>
     </div>
+    <div class="flex items-center gap-4">
+        <!-- Enhanced Cetak SPR Button -->
+        <button @click="showModal = true"
+        type="button"
+        class="relative inline-flex items-center px-6 py-3 bg-white/20 backdrop-blur-sm border border-blue-200 hover:bg-blue-600 hover:border-blue-600 text-blue-700 hover:text-white font-semibold text-sm rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-blue-300/50 overflow-hidden group">
+    <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <svg class="w-5 h-5 mr-2 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+    </svg>
+    <span class="relative z-10">Cetak SPR</span>
+</button>
+
+        <!-- Back to Dashboard Link -->
+        <a href="{{ route('dashboard') }}"
+           class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all duration-200 ease-in-out">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Kembali ke Dashboard
+        </a>
+    </div>
+</div>
 
     <!-- Kartu Statistik -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -235,6 +255,81 @@
             </div>
         </div>
     </div>
+
+    <div x-show="showModal" x-cloak
+     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center min-h-screen p-4">
+
+    <div @click.outside="showModal = false"
+         class="bg-white p-6 rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6 mt-4">
+            <h3 class="text-xl font-bold">Form Cetak Surat Persetujuan Naskah Siap Rilis</h3>
+            <button @click="showModal = false" class="text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+            <form action="{{ route('superilis.generate', $publication) }}" method="POST">
+                @csrf
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Template Surat</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center p-4 border rounded-lg has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400 cursor-pointer">
+                            <input type="radio" name="template_choice" value="A" class="form-radio h-4 w-4 text-blue-600" checked>
+                            <span class="ml-3 text-sm">Template Word (Sudah TTD dan CAP)</span>
+                        </label>
+                        <label class="flex items-center p-4 border rounded-lg has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400 cursor-pointer">
+                            <input type="radio" name="template_choice" value="B" class="form-radio h-4 w-4 text-blue-600">
+                            <span class="ml-3 text-sm">Template Word (Perlu TTD Manual/Ettd)</span>
+                        </label>
+                    </div>
+                </div>
+
+
+
+                <form action="{{ route('superilis.generate', $publication) }}"  class="space-y-4 px-2">
+                    @csrf
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <label for="nomor_surat" class="block text-sm font-medium text-gray-700 mb-1">Nomor Surat</label>
+                            <input type="text" name="nomor_surat" id="nomor_surat" value="{{ old('nomor_surat', "K-{$publication->id}/BPS1374/9286/" . now()->format('m/Y')) }}" class="form-input w-full bg-gray-100" readonly>
+                        </div>
+                        <div class="flex-1">
+                            <label for="tanggal_surat" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Surat</label>
+                            <input type="date" name="tanggal_surat" id="tanggal_surat" value="{{ old('tanggal_surat', now()->format('Y-m-d')) }}" required class="form-input w-full">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <div class="flex-1">
+                            <label for="nama_kepala" class="block text-sm font-medium text-gray-700 mb-1">Nama Kepala</label>
+                            <input type="text" name="nama_kepala" id="nama_kepala" value="{{ old('nama_kepala', \App\Models\Superilis::where('key', 'last_head_name')->first()->value ?? '') }}" required class="form-input w-full">
+                        </div>
+                        <div class="flex-1">
+                            <label for="nip_kepala" class="block text-sm font-medium text-gray-700 mb-1">NIP Kepala</label>
+                            <input type="text" name="nip_kepala" id="nip_kepala" value="{{ old('nip_kepala', \App\Models\Superilis::where('key', 'last_head_nip')->first()->value ?? '') }}" required class="form-input w-full">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="tipe_buku" class="block text-sm font-medium text-gray-700 mb-1">Tipe Buku</label>
+                        <select name="tipe_buku" id="tipe_buku" class="form-select w-full">
+                            <option value="ARC" {{ old('tipe_buku') == 'ARC' ? 'selected' : '' }}>ARC</option>
+                            <option value="Non-ARC" {{ old('tipe_buku') == 'Non-ARC' ? 'selected' : '' }}>Non-ARC</option>
+                        </select>
+                    </div>
+
+
+                    <div class="mt-8 mb-4 flex justify-end gap-4">
+                        <button type="button" @click="showModal = false" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                            Batal
+                        </button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Generate Dokumen
+                        </button>
+                    </div>
+                </form>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 <!-- DataTables CSS -->

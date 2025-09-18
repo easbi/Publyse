@@ -5,22 +5,54 @@
         <div class="p-4 border-b flex-shrink-0">
             <h2 class="text-xl font-bold text-gray-700">Daftar Komentar</h2>
 
-            <div class="mt-3 flex gap-2">
+            <!-- Search Box -->
+            <div class="mt-3 mb-3">
+                <div class="relative">
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Cari komentar..."
+                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    >
+                    <button
+                        v-if="searchQuery"
+                        @click="clearSearch"
+                        class="absolute right-2 top-2 p-1 hover:bg-gray-200 rounded-full"
+                    >
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <!-- Search Results Info -->
+                <div v-if="searchQuery && searchResults.length !== displayedComments.length" class="mt-2 text-xs text-gray-500">
+                    Ditemukan {{ searchResults.length }} dari {{ displayedComments.length }} komentar
+                </div>
+            </div>
+
+            <div class="flex gap-2">
                 <button @click="applyFilter('all')" :class="{'bg-blue-500 text-white': commentFilter === 'all'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Semua</button>
                 <button @click="applyFilter('open')" :class="{'bg-blue-500 text-white': commentFilter === 'open'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Terbuka</button>
                 <button @click="applyFilter('done')" :class="{'bg-blue-500 text-white': commentFilter === 'done'}" class="flex-1 text-sm px-3 py-1 border rounded-md">Selesai</button>
             </div>
 
             <!-- Pagination Info -->
-            <div v-if="displayedComments.length > 0" class="mt-2 text-sm text-gray-600 text-center">
-                Menampilkan {{ startIndex + 1 }}-{{ Math.min(endIndex, displayedComments.length) }} dari {{ displayedComments.length }} komentar
+            <div v-if="finalDisplayComments.length > 0" class="mt-2 text-sm text-gray-600 text-center">
+                Menampilkan {{ startIndex + 1 }}-{{ Math.min(endIndex, finalDisplayComments.length) }} dari {{ finalDisplayComments.length }} komentar
             </div>
         </div>
 
         <!-- Comments List -->
         <div class="flex-1 overflow-hidden flex flex-col">
-            <div v-if="displayedComments.length === 0" class="flex-grow flex items-center justify-center p-4">
-                <p class="text-gray-500 text-center">Tidak ada komentar yang cocok dengan filter ini.</p>
+            <div v-if="finalDisplayComments.length === 0" class="flex-grow flex items-center justify-center p-4">
+                <div class="text-center">
+                    <p class="text-gray-500 text-center">
+                        {{ searchQuery ? 'Tidak ada komentar yang cocok dengan pencarian.' : 'Tidak ada komentar yang cocok dengan filter ini.' }}
+                    </p>
+                    <button v-if="searchQuery" @click="clearSearch" class="mt-2 text-sm text-blue-500 hover:text-blue-700">
+                        Hapus pencarian
+                    </button>
+                </div>
             </div>
             <div v-else class="flex-grow min-h-0 overflow-hidden flex flex-col">
                 <!-- List Komentar dengan Pagination -->
@@ -97,11 +129,11 @@
                                         </div>
                                     </div>
 
-                                    <!-- Teks Komentar -->
+                                    <!-- Teks Komentar dengan Highlight -->
                                     <div v-else class="comment-content cursor-pointer mb-3"
                                          :class="{'line-through text-gray-500': comment.status === 'done'}"
-                                         @click="handleGoToComment(comment)">
-                                        {{ comment.content }}
+                                         @click="handleGoToComment(comment)"
+                                         v-html="highlightSearchText(comment.content)">
                                     </div>
                                 </div>
 
@@ -197,7 +229,7 @@
                                                 <button @click="handleCancelEditReply" class="text-xs text-gray-600 hover:text-gray-800">Batal</button>
                                             </div>
                                         </div>
-                                        <div v-else class="comment-content text-sm text-gray-700">{{ reply.content }}</div>
+                                        <div v-else class="comment-content text-sm text-gray-700" v-html="highlightSearchText(reply.content)"></div>
                                     </div>
                                 </div>
                             </div>
@@ -309,6 +341,15 @@
         box-sizing: border-box;
     }
 
+    /* Search highlight styling */
+    .search-highlight {
+        background-color: #fef08a;
+        color: #854d0e;
+        font-weight: 500;
+        padding: 1px 2px;
+        border-radius: 2px;
+    }
+
     /* Timestamp styling */
     .text-xs.text-gray-400 {
         font-size: 0.75rem;
@@ -395,6 +436,39 @@ const localCommentEditText = ref('');
 const localReplyText = ref('');
 const localReplyEditText = ref('');
 
+// Search state
+const searchQuery = ref('');
+
+// Search functionality
+const searchResults = computed(() => {
+    if (!searchQuery.value.trim()) {
+        return props.displayedComments;
+    }
+
+    const query = searchQuery.value.toLowerCase().trim();
+
+    return props.displayedComments.filter(comment => {
+        // Search in comment content
+        const contentMatch = comment.content.toLowerCase().includes(query);
+
+        // Search in user name
+        const userMatch = comment.user?.fullname?.toLowerCase().includes(query);
+
+        // Search in replies
+        const replyMatch = comment.replies?.some(reply =>
+            reply.content.toLowerCase().includes(query) ||
+            reply.user?.fullname?.toLowerCase().includes(query)
+        );
+
+        return contentMatch || userMatch || replyMatch;
+    });
+});
+
+// Final displayed comments (after search)
+const finalDisplayComments = computed(() => {
+    return searchResults.value;
+});
+
 // Computed properties
 const startIndex = computed(() => {
     return (props.currentPaginationPage - 1) * props.commentsPerPage;
@@ -405,11 +479,11 @@ const endIndex = computed(() => {
 });
 
 const paginatedComments = computed(() => {
-    return props.displayedComments.slice(startIndex.value, endIndex.value);
+    return finalDisplayComments.value.slice(startIndex.value, endIndex.value);
 });
 
 const totalPaginationPages = computed(() => {
-    return Math.ceil(props.displayedComments.length / props.commentsPerPage);
+    return Math.ceil(finalDisplayComments.value.length / props.commentsPerPage);
 });
 
 const visiblePageNumbers = computed(() => {
@@ -442,6 +516,22 @@ const visiblePageNumbers = computed(() => {
     return pages;
 });
 
+// Search functions
+const clearSearch = () => {
+    searchQuery.value = '';
+};
+
+const highlightSearchText = (text) => {
+    if (!searchQuery.value.trim() || !text) {
+        return text;
+    }
+
+    const query = searchQuery.value.trim();
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+
+    return text.replace(regex, '<span class="search-highlight">$1</span>');
+};
+
 // Watch for prop changes to sync local state
 watch(() => props.commentEditText, (newVal) => {
     localCommentEditText.value = newVal;
@@ -454,6 +544,14 @@ watch(() => props.replyText, (newVal) => {
 watch(() => props.replyEditText, (newVal) => {
     localReplyEditText.value = newVal;
 }, { immediate: true });
+
+// Reset pagination when search changes
+watch(searchQuery, () => {
+    // Reset to first page when searching
+    if (props.currentPaginationPage !== 1) {
+        handleGoToPage(1);
+    }
+});
 
 // Timestamp formatting functions
 const formatRelativeTime = (timestamp) => {
@@ -530,6 +628,7 @@ const canToggleStatus = computed(() => {
         return canToggle;
     };
 });
+
 const applyFilter = (filterType) => {
     emit('filter-changed', filterType);
 };
