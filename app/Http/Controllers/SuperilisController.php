@@ -45,10 +45,10 @@ class SuperilisController extends Controller
         // 5. Ganti setiap placeholder di template dengan nilai yang sebenarnya
         $templateProcessor->setValue('nomor_surat', $validated['nomor_surat']);
         $templateProcessor->setValue('hari', $tanggal->isoFormat('dddd'));
-        $templateProcessor->setValue('tanggal_terbilang',  $this->terbilang($tanggal->day));
+        $templateProcessor->setValue('tanggal_terbilang', $this->terbilang($tanggal->day));
         $templateProcessor->setValue('bulan', $tanggal->isoFormat('MMMM'));
         $templateProcessor->setValue('bulan_terbilang', $this->bulanTerbilang($tanggal->month));
-        $templateProcessor->setValue('tahun_terbilang',  $this->terbilang($tanggal->year));
+        $templateProcessor->setValue('tahun_terbilang', $this->terbilang($tanggal->year));
         $templateProcessor->setValue('nama_kepala', $validated['nama_kepala']);
         $templateProcessor->setValue('nip_kepala', $validated['nip_kepala']);
         $templateProcessor->setValue('judul_buku', $publication->name);
@@ -59,7 +59,7 @@ class SuperilisController extends Controller
         $fileName = 'Surat Persetujuan - ' . $publication->name . '.docx';
 
         // 7. Simpan hasilnya dan kirim ke browser untuk di-download
-        return response()->streamDownload(function() use ($templateProcessor) {
+        return response()->streamDownload(function () use ($templateProcessor) {
             $templateProcessor->saveAs('php://output');
         }, $fileName);
     }
@@ -86,6 +86,6 @@ class SuperilisController extends Controller
             11 => 'November',
             12 => 'Desember',
         ];
-        return $daftarBulan[(int)$bulan] ?? $bulan;
+        return $daftarBulan[(int) $bulan] ?? $bulan;
     }
 }
