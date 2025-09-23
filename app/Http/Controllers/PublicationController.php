@@ -41,7 +41,7 @@ class PublicationController extends Controller
             'document_file' => 'required|file|mimes:pdf|max:30720', // max 30MB
         ]);
 
-        $publication = Publication::create([
+        $publication = Publication::firstOrCreate([
             'name' => $validated['name'],
             'release_date' => $validated['release_date'],
             'review_deadline' => $validated['review_deadline'],
@@ -64,7 +64,7 @@ class PublicationController extends Controller
             copy($source, $destination);
 
             // Buat record dokumen di database
-            Document::create([
+            Document::firstOrCreate([
                 'publication_id' => $publication->id,
                 'original_filename' => $request->file('document_file')->getClientOriginalName(),
                 'stored_path' => $path,
