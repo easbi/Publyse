@@ -677,60 +677,58 @@ const cancelComment = () => {
     isSubmittingComment.value = false;
 };
 
-// UPDATED: saveComment dengan scale info dan robust error handling
-
-// DEBUGGING FRONTEND REQUEST - CEK NETWORK TAB
-
-// Mari kita debug step by step mengapa scale tidak terkirim
-
-// 1. TAMBAHKAN DEBUGGING EKSTENSIF DI FRONTEND
-// Update function saveComment di PdfReviewer.vue:
-
 const saveComment = async () => {
-    console.log('=== SAVE COMMENT START DEBUG ===');
+    // Generate unique request ID for tracking
+    const requestId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    console.log(`🔵 [${requestId}] SAVE COMMENT START`);
 
     if (!newCommentData.value.content.trim()) {
         alert('Silakan isi konten komentar terlebih dahulu.');
         return;
     }
 
-    if (isSubmittingComment.value) return;
+    // CRITICAL: Prevent double submission
+    if (isSubmittingComment.value) {
+        console.warn(`🟡 [${requestId}] Already submitting, ignoring duplicate call`);
+        return;
+    }
+
     isSubmittingComment.value = true;
 
     try {
         // DEBUGGING SCALE VALUE
-        console.log('1. Raw scale ref:', scale);
-        console.log('2. scale.value:', scale.value);
-        console.log('3. typeof scale.value:', typeof scale.value);
+        console.log(`🔧 [${requestId}] Raw scale ref:`, scale);
+        console.log(`🔧 [${requestId}] scale.value:`, scale.value);
+        console.log(`🔧 [${requestId}] typeof scale.value:`, typeof scale.value);
 
         // Ensure scale is a valid number
         let scaleValue = scale.value;
-        console.log('4. Initial scaleValue:', scaleValue);
+        console.log(`🔧 [${requestId}] Initial scaleValue:`, scaleValue);
 
         if (typeof scaleValue === 'string') {
             scaleValue = parseFloat(scaleValue);
-            console.log('5. Converted from string:', scaleValue);
+            console.log(`🔧 [${requestId}] Converted from string:`, scaleValue);
         }
 
         if (!scaleValue || scaleValue <= 0 || scaleValue > 10) {
-            console.warn('6. Invalid scale, using default 1.0. Original:', scaleValue);
+            console.warn(`⚠️ [${requestId}] Invalid scale, using default 1.0. Original:`, scaleValue);
             scaleValue = 1.0;
         }
 
-        console.log('7. Final scaleValue:', scaleValue);
-        console.log('8. typeof final scaleValue:', typeof scaleValue);
+        console.log(`✅ [${requestId}] Final scaleValue:`, scaleValue);
+        console.log(`✅ [${requestId}] typeof final scaleValue:`, typeof scaleValue);
 
         // DEBUGGING CANVAS SIZE
-        console.log('9. canvasSize.value:', canvasSize.value);
+        console.log(`🔧 [${requestId}] canvasSize.value:`, canvasSize.value);
         let canvasWidth = canvasSize.value.width || 800;
         let canvasHeight = canvasSize.value.height || 600;
-        console.log('10. Canvas dimensions:', { width: canvasWidth, height: canvasHeight });
+        console.log(`🔧 [${requestId}] Canvas dimensions:`, { width: canvasWidth, height: canvasHeight });
 
         // DEBUGGING POSITION
-        console.log('11. newCommentData.value:', newCommentData.value);
-        console.log('12. Position:', newCommentData.value.position);
+        console.log(`🔧 [${requestId}] newCommentData.value:`, newCommentData.value);
+        console.log(`🔧 [${requestId}] Position:`, newCommentData.value.position);
 
-        // PREPARE PAYLOAD WITH EXPLICIT VALUES
+        // PREPARE PAYLOAD WITH EXPLICIT VALUES + REQUEST ID
         const payload = {
             document_id: props.document.id,
             content: newCommentData.value.content,
@@ -743,30 +741,48 @@ const saveComment = async () => {
                 width: canvasWidth,
                 height: canvasHeight
             },
-            original_position: JSON.stringify(newCommentData.value.position)
+            original_position: JSON.stringify(newCommentData.value.position),
+            // TRACKING REQUEST ID
+            _debug_request_id: requestId
         };
 
-        console.log('13. PAYLOAD SEBELUM DIKIRIM:');
+        console.log(`📦 [${requestId}] PAYLOAD SEBELUM DIKIRIM:`);
         console.log(JSON.stringify(payload, null, 2));
 
         // CEK SETIAP FIELD PAYLOAD
-        console.log('14. Payload field check:');
+        console.log(`🔍 [${requestId}] Payload field check:`);
         Object.keys(payload).forEach(key => {
             console.log(`   ${key}:`, payload[key], `(${typeof payload[key]})`);
         });
 
-        console.log('15. API URL:', props.apiStoreUrl);
-        console.log('16. Axios defaults:', axios.defaults);
+        console.log(`🌐 [${requestId}] API URL:`, props.apiStoreUrl);
+        console.log(`⚙️ [${requestId}] Axios defaults:`, axios.defaults);
+
+        // ADD REQUEST TIMESTAMP FOR DUPLICATE DETECTION
+        const requestStartTime = Date.now();
+        console.log(`🚀 [${requestId}] Sending request at:`, new Date(requestStartTime).toISOString());
 
         // SEND REQUEST WITH DETAILED LOGGING
-        console.log('17. Sending request...');
         const response = await axios.post(props.apiStoreUrl, payload);
 
-        console.log('18. Response status:', response.status);
-        console.log('19. Response headers:', response.headers);
-        console.log('20. Response data:', response.data);
-        console.log('21. Response scale field:', response.data.created_at_scale);
-        console.log('22. typeof response scale:', typeof response.data.created_at_scale);
+        const requestEndTime = Date.now();
+        const requestDuration = requestEndTime - requestStartTime;
+
+        console.log(`✅ [${requestId}] Response received in ${requestDuration}ms`);
+        console.log(`📊 [${requestId}] Response status:`, response.status);
+        console.log(`📋 [${requestId}] Response headers:`, response.headers);
+        console.log(`📝 [${requestId}] Response data:`, response.data);
+        console.log(`🎯 [${requestId}] Response scale field:`, response.data.created_at_scale);
+        console.log(`🔢 [${requestId}] typeof response scale:`, typeof response.data.created_at_scale);
+
+        // CHECK IF COMMENT ALREADY EXISTS (PREVENT DUPLICATE ADDS)
+        const existingComment = comments.value.find(c => c.id === response.data.id);
+        if (existingComment) {
+            console.warn(`⚠️ [${requestId}] Comment ${response.data.id} already exists in state, skipping add`);
+            cancelComment();
+            showScaleToastMessage(`Komentar tersimpan dengan zoom ${Math.round(scaleValue * 100)}%`);
+            return;
+        }
 
         // Process response...
         let newCommentFromServer = response.data;
@@ -780,26 +796,30 @@ const saveComment = async () => {
         };
 
         newCommentFromServer.position = parsePosition(newCommentFromServer.position);
-        comments.value.push(newCommentFromServer);
-        comments.value = [...comments.value];
+
+        // ATOMIC UPDATE - Prevent race conditions
+        const newCommentsArray = [...comments.value, newCommentFromServer];
+        comments.value = newCommentsArray;
+
+        console.log(`💾 [${requestId}] Comment added to state:`, newCommentFromServer.id);
 
         updateDisplayedComments();
         cancelComment();
 
         showScaleToastMessage(`Komentar tersimpan dengan zoom ${Math.round(scaleValue * 100)}%`);
 
-        console.log('23. Final comment added:', newCommentFromServer);
-        console.log('=== SAVE COMMENT END DEBUG ===');
+        console.log(`🎉 [${requestId}] Final comment added:`, newCommentFromServer);
+        console.log(`🔚 [${requestId}] SAVE COMMENT END - SUCCESS`);
 
     } catch (error) {
-        console.error("=== ERROR DETAILS ===");
+        console.error(`❌ [${requestId}] ERROR DETAILS:`);
         console.error("Error object:", error);
         console.error("Response data:", error.response?.data);
         console.error("Response status:", error.response?.status);
         console.error("Response headers:", error.response?.headers);
         console.error("Request config:", error.config);
         console.error("Request data sent:", error.config?.data);
-        console.error("=== END ERROR ===");
+        console.error(`🔚 [${requestId}] SAVE COMMENT END - ERROR`);
 
         let errorMessage = 'Gagal menyimpan komentar.';
         if (error.response?.data?.message) {
@@ -813,6 +833,7 @@ const saveComment = async () => {
         alert(errorMessage);
 
     } finally {
+        console.log(`🏁 [${requestId}] Finally block - resetting isSubmittingComment`);
         isSubmittingComment.value = false;
     }
 };
@@ -963,29 +984,28 @@ const cancelReply = () => {
 };
 
 const submitReply = async (parentComment, newReplyText) => {
-    if (!newReplyText || !newReplyText.trim()) {
-        console.warn('Reply text is empty');
-        return;
-    }
+    const requestId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    console.log(`🔵 [${requestId}] submitReply called for parent:`, parentComment.id);
+
+    if (!newReplyText || !newReplyText.trim()) return;
 
     const payload = {
         content: newReplyText,
         document_id: props.document.id,
-        parent_id: parentComment.id
+        parent_id: parentComment.id,
+        _debug_request_id: requestId // For tracking
     };
 
     try {
+        console.log(`🟡 [${requestId}] Sending request...`);
         const response = await axios.post(props.apiStoreUrl, payload);
+        console.log(`🟢 [${requestId}] Response received:`, response.data.id);
+
         comments.value.push(response.data);
         updateDisplayedComments();
         cancelReply();
     } catch (error) {
-        console.error("Gagal mengirim balasan:", error);
-        if (error.response?.data?.message) {
-            alert(`Gagal mengirim balasan: ${error.response.data.message}`);
-        } else {
-            alert('Gagal mengirim balasan.');
-        }
+        console.error(`🔴 [${requestId}] Error:`, error);
     }
 };
 

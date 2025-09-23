@@ -16,6 +16,33 @@ class CommentController extends Controller
 {
     public function store(Request $request)
     {
+        $requestId = $request->get('_debug_request_id', 'unknown');
+        Log::info("Comment store request [{$requestId}]", [
+            'user_id' => auth()->id(),
+            'content' => substr($request->get('content'), 0, 50),
+            'parent_id' => $request->get('parent_id'),
+            'timestamp' => now(),
+        ]);
+
+        // Check for recent duplicate (within 5 seconds)
+        $recentDuplicate = Comment::where('user_id', auth()->id())
+            ->where('document_id', $request->document_id)
+            ->where('content', $request->content)
+            ->when($request->parent_id, function ($query, $parentId) {
+                return $query->where('parent_id', $parentId);
+            })
+            ->where('created_at', '>', now()->subSeconds(5))
+            ->first();
+
+        if ($recentDuplicate) {
+            Log::warning("Duplicate comment detected [{$requestId}]", [
+                'original_id' => $recentDuplicate->id,
+                'user_id' => auth()->id()
+            ]);
+
+            // Return existing comment instead of creating new
+            return response()->json($recentDuplicate->load('user'), 200);
+        }
         // Validasi data dasar yang selalu ada
         $validated = $request->validate([
             'document_id' => 'required|exists:documents,id',
@@ -27,17 +54,19 @@ class CommentController extends Controller
         ]);
 
         // --- LOGIKA PEMERIKSAAN BATAS WAKTU ---
-        $document = Document::findOrFail($validated['document_id']);
+        $document = Document::find($validated['document_id']);
+
+        // Set batas waktu ke akhir hari (23:59:59) sebelum membandingkan
         $deadline = Carbon::parse($document->publication->review_deadline)->endOfDay();
 
+        // Cek jika waktu saat ini sudah melewati akhir hari dari tanggal deadline
         if (Carbon::now()->isAfter($deadline)) {
-            return response()->json([
-                'message' => 'Batas waktu pemeriksaan untuk publikasi ini telah berakhir.'
-            ], 403);
+            // Jika sudah lewat, kirim respons error 403 (Forbidden)
+            return response()->json(['message' => 'Batas waktu pemeriksaan untuk publikasi ini telah berakhir.'], 403);
         }
         // --- AKHIR LOGIKA BATAS WAKTU ---
 
-        // Siapkan data dasar
+        // Siapkan data dasar untuk disimpan
         $dataToCreate = [
             'user_id' => auth()->id(),
             'status' => 'open',
@@ -50,59 +79,49 @@ class CommentController extends Controller
             'original_position' => $validated['original_position'] ?? null,
         ];
 
-        // --- Jika reply ---
+        // Cek apakah ini sebuah balasan (reply)
         if (!empty($validated['parent_id'])) {
             $parentComment = Comment::find($validated['parent_id']);
             if (!$parentComment) {
                 return response()->json(['message' => 'Komentar induk tidak ditemukan.'], 404);
             }
-
-            // Warisi atribut induk
+            // Warisi atribut dari komentar induk
             $dataToCreate['parent_id'] = $parentComment->id;
             $dataToCreate['page_number'] = $parentComment->page_number;
             $dataToCreate['type'] = $parentComment->type;
             $dataToCreate['position'] = $parentComment->position;
-
             if (!isset($validated['created_at_scale']) && $parentComment->created_at_scale) {
                 $dataToCreate['created_at_scale'] = $parentComment->created_at_scale;
             }
 
         } else {
-            // Jika komentar utama, validasi anotasi
+            // Jika ini komentar utama, validasi atribut anotasi
             $annotationData = $request->validate([
                 'page_number' => 'required|integer',
                 'type' => 'required|in:point,area',
                 'position' => 'required|json',
             ]);
-
+            // Gabungkan data anotasi
             $dataToCreate = array_merge($dataToCreate, $annotationData);
         }
 
-        // --- Proteksi anti double submit (cek komentar identik dalam 5 detik terakhir) ---
-        $recent = Comment::where('user_id', auth()->id())
-            ->where('document_id', $validated['document_id'])
-            ->where('content', $validated['content'])
-            ->where('parent_id', $validated['parent_id'] ?? null)
-            ->where('created_at', '>=', now()->subSeconds(5))
-            ->first();
-
-        if ($recent) {
-            return response()->json($recent, 200); // Balikin komentar lama, nggak bikin baru
-        }
-
-        // Simpan komentar baru
+        // Buat komentar baru
         $comment = Comment::create($dataToCreate);
+
+        Log::info("Comment created successfully [{$requestId}]", [
+            'comment_id' => $comment->id
+        ]);
 
         try {
             $this->autoKirimKeAplikasiB(auth()->user());
         } catch (\Exception $e) {
+            // Log error tapi jangan gagalkan proses utama
             Log::error('Gagal kirim ke Aplikasi B: ' . $e->getMessage());
         }
 
         $comment->load('user');
         return response()->json($comment, 201);
     }
-
 
     /**
      * Auto kirim ke Aplikasi B setiap ada comment/pemeriksaan
@@ -112,19 +131,16 @@ class CommentController extends Controller
     {
         $today = Carbon::now()->format('Y-m-d');
 
-        // Ambil comment terbaru hari ini dengan relasi publikasi
         $latestComment = Comment::where('user_id', auth()->id())
             ->whereDate('created_at', $today)
             ->with('document.publication')
             ->latest()
             ->first();
 
-        // Default values
         $publicationName = '';
         $publicationId = null;
         $linkBukti = 'https://sipalink.id/publyse/public/';
 
-        // Ambil data publikasi jika ada
         if ($latestComment && $latestComment->document && $latestComment->document->publication) {
             $publication = $latestComment->document->publication;
             $publicationName = $publication->name ?? '';
@@ -132,12 +148,10 @@ class CommentController extends Controller
             $linkBukti = url($publicationId ? "/publications/{$publicationId}/summary" : '/');
         }
 
-        // PERBAIKAN 1: Nama kegiatan yang konsisten
         $namaKegiatan = !empty($publicationName)
             ? "Melakukan Pemeriksaan Publikasi {$publicationName} di Platform Publyse "
             : "Melakukan Pemeriksaan Publikasi di Platform Publyse";
 
-        // CEK: Sudah ada entry hari ini di tabel daily_activity?
         $sudahAda = DB::connection('khi')
             ->table('daily_activity')
             ->where('nip', $user->nip)
@@ -145,49 +159,35 @@ class CommentController extends Controller
             ->where('kegiatan', 'LIKE', 'Melakukan Pemeriksaan Publikasi%')
             ->exists();
 
-        // JIKA BELUM ADA, INSERT BARU KE daily_activity
         if (!$sudahAda) {
             DB::connection('khi')
                 ->table('daily_activity')
                 ->insert([
-                    // FIELD REQUIRED (Null: "NO")
                     'nip' => $user->nip,
                     'wfo_wfh' => $user->wfo_wfh ?? 'WFO',
                     'satuan' => 'kali',
                     'kuantitas' => 1,
-                    'is_done' => 1, // 1 = sedang dikerjakan, 2 = selesai
+                    'is_done' => 1,
                     'tgl' => $today,
                     'created_by' => $user->nip,
                     'is_reminded' => 0,
-
-                    // FIELD OPTIONAL (Null: "YES")
                     'tim_kerja_id' => 15,
                     'project_id' => 14,
                     'kegiatan_utama_id' => 27,
                     'fungsional' => $user->fungsional ?? null,
-
-                    // PERBAIKAN 2: Gunakan nama kegiatan yang dynamic
                     'kegiatan' => $namaKegiatan,
-
-                    // PERBAIKAN 3: Keterangan yang lebih informatif
                     'keterangan' => !empty($publicationName)
                         ? "Auto generate dari comment/poin pemeriksaan publikasi: {$publicationName} - " . ($user->name ?? $user->nip)
                         : "Auto generate dari comment/poin pemeriksaan - " . ($user->name ?? $user->nip),
-
                     'jenis_kegiatan' => 'UTAMA',
                     'berkas' => null,
                     'link' => $linkBukti,
-
-                    // PERBAIKAN 4: tgl_selesai diisi jika is_done = 2 (selesai)
-                    'tgl_selesai' => null, // atau $today jika mau set sebagai selesai hari ini
+                    'tgl_selesai' => null,
                     'reminder_at' => null,
-
-                    // TIMESTAMPS
                     'created_at' => now(),
                     'updated_at' => now()
                 ]);
 
-            // PERBAIKAN 5: Log yang lebih informatif
             $logMessage = !empty($publicationName)
                 ? "Berhasil kirim data pemeriksaan publikasi '{$publicationName}' ke KHI untuk NIP: {$user->nip}"
                 : "Berhasil kirim data pemeriksaan ke KHI untuk NIP: {$user->nip}";
