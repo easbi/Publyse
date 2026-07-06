@@ -61,7 +61,9 @@ class PublicationController extends Controller
                 mkdir(dirname($destination), 0755, true);
             }
 
-            copy($source, $destination);
+            if (file_exists($source)) {
+                copy($source, $destination);
+            }
 
             // Buat record dokumen di database
             Document::firstOrCreate([

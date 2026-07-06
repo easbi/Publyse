@@ -132,8 +132,14 @@
                 </button>
             </div>
 
-            <form action="{{ route('documents.store', $publication) }}" method="POST" enctype="multipart/form-data">
+            @php
+                $uploadToken = session()->get('document-upload-token:' . $publication->id, (string) Illuminate\Support\Str::uuid());
+                session()->put('document-upload-token:' . $publication->id, $uploadToken);
+            @endphp
+
+            <form id="document-upload-form" action="{{ route('documents.store', $publication) }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="upload_token" value="{{ $uploadToken }}">
                 <div class="mb-6">
                     <label for="document_file" class="block text-sm font-medium text-gray-700 mb-2">
                         Pilih File PDF
@@ -149,7 +155,7 @@
                             class="px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400 text-sm">
                         Batal
                     </button>
-                    <button type="submit"
+                    <button type="submit" id="document-upload-submit"
                             class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm font-semibold">
                         Unggah
                     </button>
@@ -161,10 +167,24 @@
 
 @push('scripts')
 <script>
-// Close modal when clicking outside
-document.getElementById('upload-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        this.classList.add('hidden');
+document.addEventListener('DOMContentLoaded', function () {
+    const uploadModal = document.getElementById('upload-modal');
+    const uploadForm = document.getElementById('document-upload-form');
+    const uploadSubmit = document.getElementById('document-upload-submit');
+
+    if (uploadModal) {
+        uploadModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+    }
+
+    if (uploadForm && uploadSubmit) {
+        uploadForm.addEventListener('submit', function () {
+            uploadSubmit.disabled = true;
+            uploadSubmit.textContent = 'Mengunggah...';
+        });
     }
 });
 </script>
