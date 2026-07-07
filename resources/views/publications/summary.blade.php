@@ -313,8 +313,11 @@
                                 <label for="nomor_surat" class="block text-sm font-medium text-gray-700 mb-1">Nomor
                                     Surat</label>
                                 <input type="text" name="nomor_surat" id="nomor_surat"
-                                    value="{{ old('nomor_surat', "K-{$publication->id}/BPS1374/9286/" . now()->format('m/Y')) }}"
+                                    value="{{ old('nomor_surat') }}"
                                     class="form-input w-full bg-gray-100" readonly>
+                                <p class="mt-1 text-xs text-gray-500">
+                                    Nomor surat akan otomatis direset setiap pergantian tahun, misalnya dari 2026 menjadi 2027 dimulai dari K-1/BPS1374/9286/2027.
+                                </p>
                             </div>
                             <div class="flex-1">
                                 <label for="tanggal_surat" class="block text-sm font-medium text-gray-700 mb-1">Tanggal

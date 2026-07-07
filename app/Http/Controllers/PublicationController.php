@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\ReviewerAssignmentNotification;
 use App\Models\User;
 use App\Models\Publication;
 use App\Models\Document;
@@ -253,6 +254,8 @@ class PublicationController extends Controller
             'reviewers.*' => 'exists:users,id', // Pastikan setiap ID user ada di database
         ]);
 
+        $previousReviewerIds = $publication->reviewers()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
+
         // Gunakan sync() untuk cara yang efisien dalam memperbarui pivot table.
         // Metode ini akan otomatis menambah/menghapus relasi sesuai input.
         // Kita juga bisa menambahkan ID user yang menugaskan.
@@ -265,6 +268,41 @@ class PublicationController extends Controller
 
         $publication->reviewers()->sync($reviewers);
 
+        $assignedReviewerIds = collect($request->input('reviewers', []))
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        foreach ($assignedReviewerIds as $reviewerId) {
+            $reviewer = User::find($reviewerId);
+            if (!$reviewer) {
+                continue;
+            }
+
+            $isNewAssignment = !in_array($reviewerId, $previousReviewerIds, true);
+            if (!$isNewAssignment) {
+                continue;
+            }
+
+            $publicationUrl = route('publications.show', $publication);
+            $deadline = $publication->review_deadline
+                ? \Carbon\Carbon::parse($publication->review_deadline)->translatedFormat('d F Y')
+                : '-';
+
+            $message = "📣 *[PUBLYSE] Anda telah ditugaskan sebagai pemeriksa*\n"
+                . "📘 *Publikasi:* {$publication->name}\n"
+                . "👤 *Penugasan oleh:* " . auth()->user()->fullname . "\n"
+                . "⏰ *Deadline pemeriksaan:* {$deadline}\n"
+                . "🔗 *Link publikasi:* {$publicationUrl}\n"
+                . "Silakan buka sistem untuk melihat dokumen dan menyiapkan review Anda.";
+
+            ReviewerAssignmentNotification::create([
+                'publication_id' => $publication->id,
+                'reviewer_id' => $reviewer->id,
+                'assignor_id' => auth()->id(),
+                'status' => 'pending',
+                'message' => $message,
+            ]);
+        }
 
         // Alihkan kembali ke halaman daftar dengan pesan sukses
         return redirect()->route('publications.index')

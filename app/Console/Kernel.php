@@ -15,7 +15,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        $schedule->command('app:send-reviewer-assignment-notifications --no-interaction')
+            ->cron('1,31 * * * *')
+            ->appendOutputTo(storage_path('logs/send-reviewer-assignment-notifications.log'));
     }
 
     /**

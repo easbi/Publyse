@@ -18,7 +18,7 @@ class SuperilisController extends Controller
         Carbon::setLocale('id');
         $validated = $request->validate([
             'template_choice' => 'required|in:A,B',
-            'nomor_surat' => 'required|string',
+            'nomor_surat' => 'nullable|string',
             'tanggal_surat' => 'required|date',
             'nama_kepala' => 'required|string',
             'nip_kepala' => 'required|string',
@@ -26,6 +26,9 @@ class SuperilisController extends Controller
         ]);
         Superilis::updateOrCreate(['key' => 'last_head_name'], ['value' => $validated['nama_kepala']]);
         Superilis::updateOrCreate(['key' => 'last_head_nip'], ['value' => $validated['nip_kepala']]);
+
+        $tanggal = Carbon::parse($validated['tanggal_surat']);
+        $nomorSurat = $validated['nomor_surat'] ?? Superilis::consumeNextLetterNumber($tanggal->year);
 
         // 2. Path ke template Word
         $templateName = $validated['template_choice'] === 'A'
@@ -40,10 +43,9 @@ class SuperilisController extends Controller
         $templateProcessor = new TemplateProcessor($templatePath);
 
         // 4. Siapkan semua variabel yang dibutuhkan oleh template
-        $tanggal = Carbon::parse($validated['tanggal_surat']);
 
         // 5. Ganti setiap placeholder di template dengan nilai yang sebenarnya
-        $templateProcessor->setValue('nomor_surat', $validated['nomor_surat']);
+        $templateProcessor->setValue('nomor_surat', $nomorSurat);
         $templateProcessor->setValue('hari', $tanggal->isoFormat('dddd'));
         $templateProcessor->setValue('tanggal_terbilang', $this->terbilang($tanggal->day));
         $templateProcessor->setValue('bulan', $tanggal->isoFormat('MMMM'));
